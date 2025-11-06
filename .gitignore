@@ -8,6 +8,7 @@
 /.sublime-workspace
 /.idea
 /.vs
+/.cache
 /out
 /CMakeSettings.json
 /dist/scripts/maketarball.sh
