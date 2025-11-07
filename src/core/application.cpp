@@ -47,6 +47,7 @@
 #include "core/taskmanager.h"
 #include "core/networkaccessmanager.h"
 #include "core/player.h"
+#include "lyrics/neteaselyricsprovider.h"
 #include "tagreader/tagreaderclient.h"
 #include "engine/devicefinders.h"
 #include "core/urlhandlers.h"
@@ -191,6 +192,9 @@ class ApplicationImpl {
           lyrics_providers->AddProvider(new ElyricsNetLyricsProvider(lyrics_providers->network()));
           lyrics_providers->AddProvider(new LetrasLyricsProvider(lyrics_providers->network()));
           lyrics_providers->AddProvider(new LyricFindLyricsProvider(lyrics_providers->network()));
+#ifdef HAVE_NETEASE
+          lyrics_providers->AddProvider(new NeteaseLyricsProcvider(lyrics_providers->network()));
+#endif
           lyrics_providers->ReloadSettings();
           return lyrics_providers;
         }),

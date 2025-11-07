@@ -1487,11 +1487,15 @@ optional_source(HAVE_NETEASE
     src/netease/neteaseauthenticator.cpp
     src/netease/neteasecrypto.cpp
     src/covermanager/neteasecoverprovider.cpp
+    src/lyrics/neteaselyricsprovider.cpp
+    src/utilities/neteaseprovider.cpp
   HEADERS
     src/netease/neteaseservice.h
     src/netease/neteaseauthenticator.h
     src/netease/neteasecrypto.h
     src/covermanager/neteasecoverprovider.h
+    src/lyrics/neteaselyricsprovider.h
+    src/utilities/neteaseprovider.h
 )
 
 qt_wrap_cpp(SOURCES ${HEADERS})
