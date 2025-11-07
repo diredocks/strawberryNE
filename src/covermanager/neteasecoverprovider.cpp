@@ -165,7 +165,7 @@ void NeteaseCoverProvider::HandleSearchReply(QNetworkReply *reply, const int id)
   }
   const QJsonArray array_songs = value_songs.toArray();
 
-  for (const QJsonValue &value : array_songs) {
+  for (int i = 0; const QJsonValue &value : array_songs) {
 
     if (!value.isObject()) {
       Error("Invalid Json reply, value in items is not a object."_L1);
@@ -210,7 +210,9 @@ void NeteaseCoverProvider::HandleSearchReply(QNetworkReply *reply, const int id)
     cover_result.album = Song::AlbumRemoveDiscMisc(album);
     cover_result.image_url = cover_url;
     cover_result.image_size = QSize(800, 800);
+    cover_result.score_match += 0.1 * (array_songs.size() - i);
     results << cover_result;
+    ++i;
   }
 }
 
