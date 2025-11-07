@@ -348,6 +348,11 @@ optional_component(SUBSONIC ON "Streaming: Subsonic")
 optional_component(TIDAL ON "Streaming: Tidal")
 optional_component(SPOTIFY ON "Streaming: Spotify")
 optional_component(QOBUZ ON "Streaming: Qobuz")
+optional_component(NETEASE ON "Streaming: Netease")
+
+if(HAVE_NETEASE)
+  find_package(OpenSSL REQUIRED)
+endif()
 
 optional_component(MOODBAR ON "Moodbar"
   DEPENDS "fftw3" FFTW3_FOUND
@@ -1476,6 +1481,19 @@ optional_source(HAVE_QOBUZ
     src/settings/qobuzsettingspage.ui
 )
 
+optional_source(HAVE_NETEASE
+  SOURCES
+    src/netease/neteaseservice.cpp
+    src/netease/neteaseauthenticator.cpp
+    src/netease/neteasecrypto.cpp
+    src/covermanager/neteasecoverprovider.cpp
+  HEADERS
+    src/netease/neteaseservice.h
+    src/netease/neteaseauthenticator.h
+    src/netease/neteasecrypto.h
+    src/covermanager/neteasecoverprovider.h
+)
+
 qt_wrap_cpp(SOURCES ${HEADERS})
 qt_wrap_ui(SOURCES ${UI})
 qt_add_resources(SOURCES data/data.qrc data/icons.qrc)
@@ -1565,6 +1583,7 @@ target_link_libraries(strawberry_lib PUBLIC
   $<$<BOOL:${MSVC}>:WindowsApp>
   KDAB::kdsingleapplication
   $<$<BOOL:${HAVE_DISCORD_RPC}>:discord-rpc>
+  $<$<BOOL:${HAVE_NETEASE}>:OpenSSL::Crypto>
 )
 
 if(APPLE)

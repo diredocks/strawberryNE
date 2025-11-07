@@ -330,6 +330,10 @@ void AlbumCoverFetcherSearch::ProviderCoverFetchFinished(QNetworkReply *reply) {
     if (mimetype.contains(u';')) {
       mimetype = mimetype.left(mimetype.indexOf(u';'));
     }
+    // image/jpg -> image/jpeg
+    if (mimetype.compare(u"image/jpg", Qt::CaseInsensitive) == 0) {
+      mimetype = u"image/jpeg"_s;
+    }
     if (ImageUtils::SupportedImageMimeTypes().contains(mimetype, Qt::CaseInsensitive) || ImageUtils::SupportedImageFormats().contains(mimetype, Qt::CaseInsensitive)) {
       QByteArray image_data = reply->readAll();
       QString mime_type = Utilities::MimeTypeFromData(image_data);

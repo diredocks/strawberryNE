@@ -25,6 +25,8 @@
 #include "config.h"
 
 #include <QObject>
+#include <QNetworkCookie>
+#include <QNetworkCookieJar>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 

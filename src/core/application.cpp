@@ -24,6 +24,7 @@
 
 #include "application.h"
 
+#include <memory>
 #include <utility>
 #include <functional>
 #include <chrono>
@@ -104,6 +105,11 @@
 #  include "covermanager/qobuzcoverprovider.h"
 #endif
 
+#ifdef HAVE_NETEASE
+#  include "netease/neteaseservice.h"
+#  include "covermanager/neteasecoverprovider.h"
+#endif
+
 #ifdef HAVE_MOODBAR
 #  include "moodbar/moodbarcontroller.h"
 #  include "moodbar/moodbarloader.h"
@@ -160,6 +166,9 @@ class ApplicationImpl {
 #ifdef HAVE_QOBUZ
           cover_providers->AddProvider(new QobuzCoverProvider(app->streaming_services()->Service<QobuzService>(), app->network()));
 #endif
+#ifdef HAVE_NETEASE
+          cover_providers->AddProvider(new NeteaseCoverProvider(app->network()));
+#endif
           cover_providers->ReloadSettings();
           return cover_providers;
         }),
@@ -198,6 +207,9 @@ class ApplicationImpl {
 #endif
 #ifdef HAVE_QOBUZ
           streaming_services->AddService(make_shared<QobuzService>(app->task_manager(), app->database(), app->network(), app->url_handlers(), app->albumcover_loader()));
+#endif
+#ifdef HAVE_NETEASE
+          streaming_services->AddService(make_shared<NeteaseService>(app->task_manager(), app->database(), app->network(), app->albumcover_loader()));
 #endif
           return streaming_services;
         }),
