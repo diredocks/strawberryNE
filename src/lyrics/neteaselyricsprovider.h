@@ -24,7 +24,7 @@ class NeteaseLyricsProcvider : public JsonLyricsProvider {
     explicit LyricsSearchContext() : id(-1) {}
     int id;
     LyricsSearchRequest request;
-    QList<int> requests_track_ids_;
+    QMap<qint64, LyricsSearchResult> active_tracks_;
     LyricsSearchResults results;
   };
 
@@ -32,16 +32,15 @@ class NeteaseLyricsProcvider : public JsonLyricsProvider {
 
   bool SendSearchRequest(LyricsSearchContextPtr search);
   JsonObjectResult ParseJsonObject(QNetworkReply *reply);
-  void SendLyricsRequest(const LyricsSearchRequest &request, const QString &artist, const QString &title);
-  bool SendLyricsRequest(LyricsSearchContextPtr search, const int track_id);
-  void EndSearch(LyricsSearchContextPtr search, const int track_id = 0);
+  bool SendLyricsRequest(LyricsSearchContextPtr search, const qint64 track_id);
+  void EndSearch(LyricsSearchContextPtr search, const qint64 track_id);
 
  protected Q_SLOTS:
   void StartSearch(const int id, const LyricsSearchRequest &request) override;
 
  private Q_SLOTS:
   void HandleSearchReply(QNetworkReply *reply, NeteaseLyricsProcvider::LyricsSearchContextPtr search);
-  void HandleLyricsReply(QNetworkReply *reply, NeteaseLyricsProcvider::LyricsSearchContextPtr search, const int track_id);
+  void HandleLyricsReply(QNetworkReply *reply, NeteaseLyricsProcvider::LyricsSearchContextPtr search, const qint64 track_id);
 
  protected:
   using Param = QPair<QString, QString>;

@@ -1,7 +1,3 @@
-#include <qcontainerfwd.h>
-#include <utility>
-#include <memory>
-
 #include <QApplication>
 #include <QThread>
 #include <QByteArray>
@@ -14,6 +10,8 @@
 #include <QNetworkReply>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <qcontainerfwd.h>
+#include <qtypes.h>
 
 #include "includes/shared_ptr.h"
 #include "netease/neteaseservice.h"
@@ -112,7 +110,7 @@ void NeteaseLyricsProcvider::HandleSearchReply(QNetworkReply *reply, LyricsSearc
 
   Q_ASSERT(QThread::currentThread() != qApp->thread());
 
-  const QScopeGuard end_search = qScopeGuard([this, search]() { EndSearch(search); });
+  // const QScopeGuard end_search = qScopeGuard([this, search]() { EndSearch(search); });
 
   if (!replies_.contains(reply)) return;
   replies_.removeAll(reply);
@@ -156,31 +154,65 @@ void NeteaseLyricsProcvider::HandleSearchReply(QNetworkReply *reply, LyricsSearc
   }
   const QJsonArray array_items = value_items.toArray();
 
-  for (const QJsonValue &value_track: array_items) {
+  for (int i = 0; const QJsonValue &value_track: array_items) {
     if (!value_track.isObject()) {
       continue;
     }
     QJsonObject object_track = value_track.toObject();
 
-    if (!object_track.contains(u"id"_s)) {
+    if (!object_track.contains("id"_L1)) {
       Error(u"Invalid Json reply, song is missing id."_s, object_track);
       continue;
     }
 
-    const int track_id = object_track[u"id"_s].toInt();
-    if (search->requests_track_ids_.contains(track_id)) continue;
-    search->requests_track_ids_.append(track_id);
+    const qint64 track_id = object_track["id"_L1].toInteger();
+    if (search->active_tracks_.contains(track_id)) continue;
+
+    LyricsSearchResult res;
+
+    const QJsonValue value_title = object_track["name"_L1];
+    if (!value_title.isString()) {
+      Error("Invalid Json reply, name is not a string."_L1, value_title);
+      continue;
+    }
+    res.title = object_track["name"_L1].toString();
+
+    const QJsonArray array_artists = object_track["ar"_L1].toArray();
+    if (!array_artists.isEmpty()) {
+      const QJsonValue first_artist = array_artists.first();
+      if (!first_artist.isObject() || !first_artist.toObject().contains("name"_L1)) {
+        Error("Invalid Json reply, artist entry missing name."_L1, first_artist);
+        continue;
+      }
+      res.artist = first_artist.toObject()["name"_L1].toString();
+    }
+
+    const QJsonValue value_album = object_track["al"_L1];
+    if (!value_album.isObject()) {
+      Error("Invalid Json reply, album is not a object."_L1, value_album);
+      continue;
+    }
+    const QJsonObject object_album = value_album.toObject();
+
+    if (!object_album.contains("name"_L1) || !object_album.contains("picUrl"_L1)) {
+      Error("Invalid Json reply, album missing name or picUrl."_L1, object_album);
+      continue;
+    }
+    res.album = object_album["name"_L1].toString();
+
+    res.score += 0.1 * (array_items.size() - i);
+    i++;
+
+    search->active_tracks_.insert(track_id, res);
   }
 
-  for (const int track_id : std::as_const(search->requests_track_ids_)) {
-    SendLyricsRequest(search, track_id);
+  for (auto it = search->active_tracks_.cbegin(); it != search->active_tracks_.cend(); ++it) {
+    SendLyricsRequest(search, it.key());
   }
 
 }
 
-bool NeteaseLyricsProcvider::SendLyricsRequest(LyricsSearchContextPtr search, const int track_id) {
-
-  qLog(Debug) << "NeteaseLyrics: Sending request for id" << track_id;
+bool NeteaseLyricsProcvider::SendLyricsRequest(LyricsSearchContextPtr search, const qint64 track_id) {
 
   const QUrl url(QLatin1String(NeteaseService::kApiUrl) + "/api/song/lyric"_L1);
   
@@ -200,11 +232,13 @@ bool NeteaseLyricsProcvider::SendLyricsRequest(LyricsSearchContextPtr search, co
   QNetworkReply *reply = CreateGetRequest(url, url_query);
   QObject::connect(reply, &QNetworkReply::finished, this, [this, reply, search, track_id]() { HandleLyricsReply(reply, search, track_id); });
 
+  qLog(Debug) << "NeteaseLyrics: Sending request for id" << track_id;
+
   return true;
 
 }
 
-void NeteaseLyricsProcvider::HandleLyricsReply(QNetworkReply *reply, LyricsSearchContextPtr search, const int track_id) {
+void NeteaseLyricsProcvider::HandleLyricsReply(QNetworkReply *reply, LyricsSearchContextPtr search, const qint64 track_id) {
 
   Q_ASSERT(QThread::currentThread() != qApp->thread());
 
@@ -251,7 +285,7 @@ void NeteaseLyricsProcvider::HandleLyricsReply(QNetworkReply *reply, LyricsSearc
     Error("Json lyric value is not string."_L1, value_lyric);
   }
 
-  LyricsSearchResult result;
+  LyricsSearchResult result = search->active_tracks_.take(track_id);
   result.lyrics = object_lrc["lyric"_L1].toString();
   if (!result.lyrics.isEmpty()) {
     result.lyrics = NeteaseProvider::LrcToString(result.lyrics);
@@ -260,18 +294,15 @@ void NeteaseLyricsProcvider::HandleLyricsReply(QNetworkReply *reply, LyricsSearc
 
 }
 
-void NeteaseLyricsProcvider::EndSearch(LyricsSearchContextPtr search, const int track_id) {
+void NeteaseLyricsProcvider::EndSearch(LyricsSearchContextPtr search, const qint64 track_id) {
 
-  if (search->requests_track_ids_.contains(track_id)) {
-    search->requests_track_ids_.removeAll(track_id);
-  }
+  search->active_tracks_.remove(track_id);
 
-  if (search->requests_track_ids_.count() == 0) {
+  if (search->active_tracks_.isEmpty()) {
     requests_search_.removeAll(search);
     if (search->results.isEmpty()) {
       qLog(Debug) << "NeteaseLyrics: No lyrics for" << search->request.artist << search->request.title;
-    }
-    else {
+    } else {
       qLog(Debug) << "NeteaseLyrics: Got lyrics for" << search->request.artist << search->request.title;
     }
     Q_EMIT SearchFinished(search->id, search->results);

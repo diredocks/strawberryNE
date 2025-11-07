@@ -95,6 +95,7 @@ void LyricsFetcherSearch::ProviderSearchFinished(const int id, const LyricsSearc
   float higest_score = 0.0;
   for (int i = 0; i < results_copy.count(); ++i) {
     results_copy[i].provider = provider->name();
+    if (results_copy[i].score > 0.0) continue; // If score is already set, skip comparing
     results_copy[i].score = 0.0;
     if (results_copy[i].artist.compare(request_.albumartist, Qt::CaseInsensitive) == 0 || results_copy[i].artist.compare(request_.artist, Qt::CaseInsensitive) == 0) {
       results_copy[i].score += 0.5;
