@@ -6,6 +6,7 @@
 #include "constants/neteasesettings.h"
 #include "neteaseservice.h"
 #include "core/song.h"
+#include "core/logging.h"
 #include "core/taskmanager.h"
 #include "core/database.h"
 #include "core/networkaccessmanager.h"
@@ -30,6 +31,7 @@ NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
       enabled_(false) {
 
   // QObject::connect(oauth_, &OAuthenticator::AuthenticationFinished, this, &SpotifyService::OAuthFinished);
+  QObject::connect(netease_auth_, &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseService::AuthFinished);
 
   netease_auth_->LoadSession();
   Authenticate(); // TODO: remove me
@@ -53,5 +55,11 @@ void NeteaseService::Exit() {
 void NeteaseService::ClearSession() {
 
   netease_auth_->ClearSession();
+
+}
+
+void NeteaseService::AuthFinished(const bool success, const QString &error) {
+
+  qLog(Debug) << success << error;
 
 }

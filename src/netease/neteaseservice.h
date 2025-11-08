@@ -88,7 +88,7 @@ class NeteaseService : public StreamingService {
 
  private Q_SLOTS:
   // TODO: void ExitReceived();
-  // TODO: void AuthFinished(const bool success, const QString &error = QString());
+  void AuthFinished(const bool success, const QString &error = QString());
   // TODO: void StartSearch();
   //
   // void ArtistsResultsReceived(const int id, const SongMap &songs, const QString &error);
