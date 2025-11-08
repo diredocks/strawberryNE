@@ -16,6 +16,7 @@
 #include "core/logging.h"
 #include "core/settings.h"
 #include "constants/neteasesettings.h"
+#include "netease/neteasecrypto.h"
 #include "netease/neteaseservice.h"
 #include "neteaseauthenticator.h"
 
@@ -29,6 +30,7 @@ enum class QrLoginStatus : qint64 {
   Confirmed = 803,
   Unknown = -1
 };
+const char kApiUrl[] = "https://music.163.com";
 }
 
 NeteaseAuthenticator::NeteaseAuthenticator(const SharedPtr<NetworkAccessManager> network, QObject *parent)
@@ -91,10 +93,16 @@ void NeteaseAuthenticator::Authenticate() {
 
 QNetworkReply *NeteaseAuthenticator::CreateUnikeyRequest() {
 
-  QUrl unikey_url(QLatin1String(NeteaseService::kApiUrl) + "/weapi/login/qrcode/unikey"_L1);
-  unikey_url.setQuery(QUrlQuery{{"type"_L1, "3"_L1}});
+  QUrl unikey_url(QLatin1String(kApiUrl) + "/weapi/login/qrcode/unikey"_L1);
 
-  QNetworkReply *reply = network_->get(QNetworkRequest(unikey_url));
+  const QVariantMap encryped = NeteaseCrypto::weapi(QJsonDocument(QJsonObject{{"type"_L1, "1"_L1}}));
+  QUrlQuery url_query;
+  url_query.addQueryItem("params"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encryped.value("params"_L1).toString())));
+  url_query.addQueryItem("encSecKey"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encryped.value("encSecKey"_L1).toString())));
+
+  const QByteArray query = url_query.toString(QUrl::FullyEncoded).toUtf8();
+
+  QNetworkReply *reply = network_->post(QNetworkRequest(unikey_url), query);
   replies_ << reply;
   QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() { UnikeyRequestFinished(reply); });
   QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseAuthenticator::HandleSSLErrors);
@@ -105,10 +113,19 @@ QNetworkReply *NeteaseAuthenticator::CreateUnikeyRequest() {
 
 QNetworkReply *NeteaseAuthenticator::CreateQrCheckRequest() {
 
-  QUrl qrcheck_url(QLatin1String(NeteaseService::kApiUrl) + "/weapi/login/qrcode/client/login"_L1);
-  qrcheck_url.setQuery(QUrlQuery{{"type"_L1, "3"_L1}, {"key"_L1, unikey_}});
+  QUrl qrcheck_url(QLatin1String(kApiUrl) + "/weapi/login/qrcode/client/login"_L1);
 
-  QNetworkReply *reply = network_->get(QNetworkRequest(qrcheck_url));
+  const QVariantMap encryped = NeteaseCrypto::weapi(QJsonDocument(QJsonObject{
+        {"type"_L1, "1"_L1},
+        {"key"_L1, unikey_},
+        }));
+  QUrlQuery url_query;
+  url_query.addQueryItem("params"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encryped.value("params"_L1).toString())));
+  url_query.addQueryItem("encSecKey"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encryped.value("encSecKey"_L1).toString())));
+
+  const QByteArray query = url_query.toString(QUrl::FullyEncoded).toUtf8();
+
+  QNetworkReply *reply = network_->post(QNetworkRequest(qrcheck_url), query);
   replies_ << reply;
   QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() { QrCheckRequestFinished(reply); });
   QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseAuthenticator::HandleSSLErrors);
@@ -225,6 +242,7 @@ void NeteaseAuthenticator::QrCheckRequestFinished(QNetworkReply *reply) {
   const qint64 code = json_object["code"_L1].toInteger();
   const QrLoginStatus status = static_cast<QrLoginStatus>(code);
 
+  qLog(Debug) << json_object;
   switch (status) {
     case QrLoginStatus::Timeout:
       Q_EMIT AuthenticationFinished(false, u"Authentication failed, QRCode timeout reached"_s);
@@ -237,8 +255,7 @@ void NeteaseAuthenticator::QrCheckRequestFinished(QNetworkReply *reply) {
       break;
 
     default:
-      qLog(Debug) << json_object;
-      // Q_EMIT AuthenticationFinished(false, QStringLiteral("Authentication failed, unknown error code %1").arg(code));
+      Q_EMIT AuthenticationFinished(false, QStringLiteral("Authentication failed, unknown status code %1").arg(code));
       break;
   }
 
