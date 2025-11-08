@@ -1,7 +1,3 @@
-#include "constants/neteasesettings.h"
-#include "core/logging.h"
-#include "core/settings.h"
-
 #include <QObject>
 #include <QString>
 #include <QUrl>
@@ -15,27 +11,34 @@
 #include <QJsonValue>
 #include <QJsonObject>
 #include <QJsonParseError>
-#include <qjsondocument.h>
-#include <qlogging.h>
-#include <qnamespace.h>
-#include <qnetworkreply.h>
-#include <qnetworkrequest.h>
-#include <qobject.h>
-#include <qstringliteral.h>
-#include <qurl.h>
-#include <qurlquery.h>
 
-#include "neteaseauthenticator.h"
 #include "core/networkaccessmanager.h"
+#include "core/logging.h"
+#include "core/settings.h"
+#include "constants/neteasesettings.h"
+#include "netease/neteaseservice.h"
+#include "neteaseauthenticator.h"
 
 using namespace Qt::Literals::StringLiterals;
 
-NeteaseAuthenticator::NeteaseAuthenticator(const SharedPtr<NetworkAccessManager> network, QObject *parent)
-    : QObject(parent),
-      network_(network),
-      timer_check_login_(new QTimer(this)) {
+namespace {
+enum class QrLoginStatus : qint64 {
+  Timeout = 800,
+  Waiting = 801,
+  Scanning = 802,
+  Confirmed = 803,
+  Unknown = -1
+};
+}
 
-  // TODO: set timer_check_login_ handler and timeout here
+NeteaseAuthenticator::NeteaseAuthenticator(const SharedPtr<NetworkAccessManager> network, QObject *parent)
+  : QObject(parent),
+    network_(network),
+    timer_check_login_(new QTimer(this)) {
+
+  timer_check_login_->setInterval(1000);
+  QObject::connect(timer_check_login_, &QTimer::timeout, this, &NeteaseAuthenticator::CreateQrCheckRequest);
+  QObject::connect(this, &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseAuthenticator::StopCheckLoginTimer);
 
 }
 
@@ -50,18 +53,11 @@ NeteaseAuthenticator::~NeteaseAuthenticator() {
 
 }
 
-
-QList<QNetworkCookie> NeteaseAuthenticator::cookies() const {
-
-  return cookies_;
-
-}
-
 void NeteaseAuthenticator::LoadSession() {
 
   Settings s;
   s.beginGroup(NeteaseSettings::kSettingsGroup);
-  // TODO: load from file to cookies
+  // TODO: load session from settings, cookies for sure
   s.endGroup();
 
 }
@@ -72,82 +68,179 @@ void NeteaseAuthenticator::ClearSession() {
 
   Settings s;
   s.beginGroup(NeteaseSettings::kSettingsGroup);
-  s.remove(NeteaseSettings::kCookie);
+  // TODO: remove from settings etc...
   s.endGroup();
 
-  if(timer_check_login_->isActive()) {
-    timer_check_login_->stop();
-  }
+  StopCheckLoginTimer();
 
 }
 
-void NeteaseAuthenticator::StartCheckLoginTimer() {
+void NeteaseAuthenticator::StopCheckLoginTimer() {
 
-  if (!timer_check_login_->isActive()) {
-    timer_check_login_->start();
+  if (timer_check_login_->isActive()) {
+    timer_check_login_->stop();
   }
 
 }
 
 void NeteaseAuthenticator::Authenticate() {
 
-  // From QCloudMusicApi/module.cpp
-  const QByteArray ID_XOR_KEY_1 = QByteArrayLiteral("3go8&$833h0k(2)2");
-
-  auto cloudmusic_dll_encode_id = [ID_XOR_KEY_1](const QString &some_id) -> QByteArray {
-      QByteArray input = some_id.toUtf8();
-      QByteArray xored;
-      xored.resize(input.size());
-
-      for (int i = 0; i < input.size(); ++i) {
-          xored[i] = input[i] ^ ID_XOR_KEY_1[i % ID_XOR_KEY_1.size()];
-      }
-
-      QByteArray md5 = QCryptographicHash::hash(xored, QCryptographicHash::Md5);
-      return md5.toBase64();
-  };
-
-  const QString deviceId = u"NMUSIC"_s;
-  const QByteArray encodedId = QString(deviceId + u" "_s +
-      QString::fromUtf8(cloudmusic_dll_encode_id(deviceId))
-  ).toUtf8().toBase64();
-
-  const auto username = QString::fromUtf8(encodedId);
-  //
-
-  QUrlQuery url_query;
-  url_query.addQueryItem(u"username"_s, username);
-  QUrl url(u"https://interface.music.163.com/api/register/anonimous"_s);
-  url.setQuery(url_query);
-
-  QNetworkRequest network_request(url);
-  QNetworkReply* reply = network_->get(network_request);
-  replies_ << reply;
-  QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseAuthenticator::HandleSSLErrors);
-  QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() { AnonimousRegisterFinished(reply); });
+  CreateUnikeyRequest();
 
 }
 
-void NeteaseAuthenticator::AnonimousRegisterFinished(QNetworkReply *reply) {
+QNetworkReply *NeteaseAuthenticator::CreateUnikeyRequest() {
+
+  QUrl unikey_url(QLatin1String(NeteaseService::kApiUrl) + "/weapi/login/qrcode/unikey"_L1);
+  unikey_url.setQuery(QUrlQuery{{"type"_L1, "3"_L1}});
+
+  QNetworkReply *reply = network_->get(QNetworkRequest(unikey_url));
+  replies_ << reply;
+  QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() { UnikeyRequestFinished(reply); });
+  QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseAuthenticator::HandleSSLErrors);
+
+  return reply;
+
+}
+
+QNetworkReply *NeteaseAuthenticator::CreateQrCheckRequest() {
+
+  QUrl qrcheck_url(QLatin1String(NeteaseService::kApiUrl) + "/weapi/login/qrcode/client/login"_L1);
+  qrcheck_url.setQuery(QUrlQuery{{"type"_L1, "3"_L1}, {"key"_L1, unikey_}});
+
+  QNetworkReply *reply = network_->get(QNetworkRequest(qrcheck_url));
+  replies_ << reply;
+  QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() { QrCheckRequestFinished(reply); });
+  QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseAuthenticator::HandleSSLErrors);
+
+  return reply;
+
+}
+
+void NeteaseAuthenticator::UnikeyRequestFinished(QNetworkReply *reply) {
 
   if (!replies_.contains(reply)) return;
   replies_.removeAll(reply);
   QObject::disconnect(reply, nullptr, this, nullptr);
   reply->deleteLater();
 
-  if (reply->error() != QNetworkReply::NoError && reply->error() < 200) {
-    const QString error_message = u"%1 (%2)"_s.arg(reply->errorString()).arg(reply->error());
+  if (reply->error() != QNetworkReply::NoError) {
+    const QString error_message = QStringLiteral("%1 (%2)").arg(reply->errorString()).arg(reply->error());
     Q_EMIT AuthenticationFinished(false, error_message);
   }
 
-  // TODO: check API error
-  // QByteArray response_data = reply->readAll();
-  // qDebug() << "Response:" << response_data;
-  cookies_ = network_->cookieJar()->cookiesForUrl(reply->url());
+  const QByteArray data = reply->readAll();
 
-  qLog(Debug) << NeteaseSettings::kSettingsGroup << "Authentication was successful";
+  QJsonParseError json_error;
+  const QJsonDocument json_document = QJsonDocument::fromJson(data, &json_error);
+  if (json_error.error != QJsonParseError::NoError) {
+    Q_EMIT AuthenticationFinished(false, QStringLiteral("Failed to parse Json data in authentication reply: %1").arg(json_error.errorString()));
+    return;
+  }
 
-  Q_EMIT AuthenticationFinished(true);
+  if (json_document.isEmpty()) {
+    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has empty Json document."_s);
+    return;
+  }
+  if (!json_document.isObject()) {
+    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has Json document that is not an object."_s);
+    return;
+  }
+
+  const QJsonObject json_object = json_document.object();
+  if (json_object.isEmpty()) {
+    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has empty Json object."_s);
+    return;
+  }
+
+  if (json_object.contains("msg"_L1) && json_object.contains("code"_L1)) {
+    const QString error = json_object["msg"_L1].toString();
+    const qint64 code = json_object["code"_L1].toInteger();
+    qLog(Debug) << json_object;
+    Q_EMIT AuthenticationFinished(false, QStringLiteral("%1 (%2)").arg(error, QString::number(code)));
+    return;
+  }
+
+  if (!json_object.contains("unikey"_L1)) {
+    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server is missing unikey."_s);
+    return;
+  }
+
+  unikey_ = json_object["unikey"_L1].toString();
+  qLog(Debug) << unikey_;
+  if (!timer_check_login_->isActive()) {
+    timer_check_login_->start();
+  }
+
+}
+
+void NeteaseAuthenticator::QrCheckRequestFinished(QNetworkReply *reply) {
+
+  if (!replies_.contains(reply)) return;
+  replies_.removeAll(reply);
+  QObject::disconnect(reply, nullptr, this, nullptr);
+  reply->deleteLater();
+
+  if (reply->error() != QNetworkReply::NoError) {
+    const QString error_message = QStringLiteral("%1 (%2)").arg(reply->errorString()).arg(reply->error());
+    Q_EMIT AuthenticationFinished(false, error_message);
+  }
+
+  const QByteArray data = reply->readAll();
+
+  QJsonParseError json_error;
+  const QJsonDocument json_document = QJsonDocument::fromJson(data, &json_error);
+  if (json_error.error != QJsonParseError::NoError) {
+    Q_EMIT AuthenticationFinished(false, QStringLiteral("Failed to parse Json data in authentication reply: %1").arg(json_error.errorString()));
+    return;
+  }
+
+  if (json_document.isEmpty()) {
+    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has empty Json document."_s);
+    return;
+  }
+  if (!json_document.isObject()) {
+    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has Json document that is not an object."_s);
+    return;
+  }
+
+  const QJsonObject json_object = json_document.object();
+  if (json_object.isEmpty()) {
+    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has empty Json object."_s);
+    return;
+  }
+
+  if (json_object.contains("msg"_L1) && json_object.contains("code"_L1)) {
+    const QString error = json_object["msg"_L1].toString();
+    const qint64 code = json_object["code"_L1].toInteger();
+    Q_EMIT AuthenticationFinished(false, QStringLiteral("%1 (%2)").arg(error, QString::number(code)));
+    return;
+  }
+
+  if (!json_object.contains("message"_L1) && !json_object.contains("code"_L1)) {
+    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server is missing message and code."_s);
+    return;
+  }
+
+  const qint64 code = json_object["code"_L1].toInteger();
+  const QrLoginStatus status = static_cast<QrLoginStatus>(code);
+
+  switch (status) {
+    case QrLoginStatus::Timeout:
+      Q_EMIT AuthenticationFinished(false, u"Authentication failed, QRCode timeout reached"_s);
+      break;
+
+    case QrLoginStatus::Waiting:
+      break;
+
+    case QrLoginStatus::Scanning:
+      break;
+
+    default:
+      qLog(Debug) << json_object;
+      // Q_EMIT AuthenticationFinished(false, QStringLiteral("Authentication failed, unknown error code %1").arg(code));
+      break;
+  }
 
 }
 

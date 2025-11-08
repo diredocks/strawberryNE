@@ -1,8 +1,6 @@
 #ifndef NETEASEAUTHENTICATOR_H
 #define NETEASEAUTHENTICATOR_H
 
-#include "config.h"
-
 #include <QObject>
 #include <QList>
 #include <QString>
@@ -26,9 +24,8 @@ class NeteaseAuthenticator: public QObject {
   explicit NeteaseAuthenticator(const SharedPtr<NetworkAccessManager> network, QObject *parent = nullptr);
   ~NeteaseAuthenticator() override;
 
+  QList<QNetworkCookie> cookies() const { return cookies_; }
   bool authenticated() const { return !cookies_.empty(); }
-
-  QList<QNetworkCookie> cookies() const;
 
   void Authenticate();
   void ClearSession();
@@ -38,25 +35,24 @@ class NeteaseAuthenticator: public QObject {
   using Param = QPair<QString, QString>;
   using ParamList = QList<Param>;
 
-  void StartCheckLoginTimer();
-  // QNetworkReply *CreateAccessTokenRequest(const ParamList &params, const bool refresh_token);
-  // void RequestAccessToken(const QString &code = QString(), const QUrl &redirect_url = QUrl());
-  // void QrCodeUrlReceived(const QUrl &qrcode_url);
+  void StopCheckLoginTimer();
+  QNetworkReply *CreateUnikeyRequest();
+  QNetworkReply *CreateQrCheckRequest();
 
  Q_SIGNALS:
   void Error(const QString &error);
   void AuthenticationFinished(const bool success, const QString &error = QString());
 
  private Q_SLOTS:
-  // void RedirectArrived();
   void HandleSSLErrors(const QList<QSslError> &ssl_errors);
-  void AnonimousRegisterFinished(QNetworkReply *reply);
-  // void AccessTokenRequestFinished(QNetworkReply *reply, const bool refresh_token);
+  void UnikeyRequestFinished(QNetworkReply *reply);
+  void QrCheckRequestFinished(QNetworkReply *reply);
 
  private:
   const SharedPtr<NetworkAccessManager> network_;
   QTimer *timer_check_login_;
 
+  QString unikey_;
   QList<QNetworkCookie> cookies_;
 
   QList<QNetworkReply*> replies_;
