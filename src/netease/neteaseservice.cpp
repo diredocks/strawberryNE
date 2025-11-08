@@ -5,6 +5,7 @@
 
 #include "constants/neteasesettings.h"
 #include "neteaseservice.h"
+#include "neteaseauthenticator.h"
 #include "core/song.h"
 #include "core/logging.h"
 #include "core/taskmanager.h"
@@ -19,6 +20,7 @@ using namespace Qt::Literals::StringLiterals;
 
 const Song::Source NeteaseService::kSource = Song::Source::Netease;
 const char NeteaseService::kApiUrl[] = "https://interface.music.163.com";
+const char NeteaseService::kWebApiUrl[] = "https://music.163.com";
 
 NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
                                const SharedPtr<Database> database,
@@ -27,11 +29,11 @@ NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
                                QObject *parent)
     : StreamingService(Song::Source::Netease, u"Netease"_s, u"netease"_s, QLatin1String(NeteaseSettings::kSettingsGroup), parent),
       network_(network),
-      netease_auth_(new NeteaseAuthenticator(network, this)),
+      netease_auth_(new NeteaseAuthenticator(this, network, this)),
       enabled_(false) {
 
   // QObject::connect(oauth_, &OAuthenticator::AuthenticationFinished, this, &SpotifyService::OAuthFinished);
-  QObject::connect(netease_auth_, &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseService::AuthFinished);
+  QObject::connect(netease_auth_.get(), &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseService::AuthFinished);
 
   netease_auth_->LoadSession();
   Authenticate(); // TODO: remove me
@@ -61,5 +63,11 @@ void NeteaseService::ClearSession() {
 void NeteaseService::AuthFinished(const bool success, const QString &error) {
 
   qLog(Debug) << success << error;
+
+}
+
+bool NeteaseService::authenticated() const {
+
+    return netease_auth_->authenticated();
 
 }

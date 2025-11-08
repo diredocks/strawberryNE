@@ -11,17 +11,18 @@
 
 #include "includes/shared_ptr.h"
 #include "core/networkaccessmanager.h"
+#include "neteasebaserequest.h"
 
 class QTimer;
 class QNetworkReply;
 class NetworkAccessManager;
-class LocalRedirectServer;
+class NeteaseBaseRequest;
 
-class NeteaseAuthenticator: public QObject {
+class NeteaseAuthenticator: public NeteaseBaseRequest {
   Q_OBJECT
 
  public:
-  explicit NeteaseAuthenticator(const SharedPtr<NetworkAccessManager> network, QObject *parent = nullptr);
+  explicit NeteaseAuthenticator(NeteaseService *service, const SharedPtr<NetworkAccessManager> network, QObject *parent = nullptr);
   ~NeteaseAuthenticator() override;
 
   QList<QNetworkCookie> cookies() const { return cookies_; }

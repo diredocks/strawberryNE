@@ -10,7 +10,6 @@
 
 #include "includes/shared_ptr.h"
 #include "core/song.h"
-#include "netease/neteaseauthenticator.h"
 #include "streaming/streamingservice.h"
 #include "collection/collectionmodel.h"
 
@@ -20,13 +19,8 @@ class TaskManager;
 class Database;
 class NetworkAccessManager;
 class AlbumCoverLoader;
-// class SpotifyRequest;
-// class SpotifyFavoriteRequest;
-// class SpotifyStreamURLRequest;
-// class CollectionBackend;
-// class CollectionModel;
-// class CollectionFilter;
-// class OAuthenticator;
+class NeteaseBaseRequest;
+class NeteaseAuthenticator;
 
 // using SpotifyRequestPtr = QScopedPointer<SpotifyRequest, QScopedPointerDeleteLater>;
 
@@ -44,6 +38,7 @@ class NeteaseService : public StreamingService {
 
   static const Song::Source kSource;
   static const char kApiUrl[];
+  static const char kWebApiUrl[];
 
   void Exit() override;
   // TODO: void ReloadSettings() override;
@@ -58,7 +53,7 @@ class NeteaseService : public StreamingService {
   // bool download_album_covers() const { return download_album_covers_; }
   // bool remove_remastered() const { return remove_remastered_; }
 
-  bool authenticated() const override { return netease_auth_->authenticated(); }
+  bool authenticated() const override;
   // TODO: QString cookie() const;
 
   // SharedPtr<CollectionBackend> artists_collection_backend() override { return artists_collection_backend_; }
@@ -67,7 +62,7 @@ class NeteaseService : public StreamingService {
   //
   // CollectionModel *artists_collection_model() override { return artists_collection_model_; }
   // CollectionModel *albums_collection_model() override { return albums_collection_model_; }
-  // CollectionModel *songs_collection_model() override { return songs_collection_model_; }
+  // CollectionModel *songs_collection_model() override NeteaseAuthenticator { return songs_collection_model_; }
   //
   // CollectionFilter *artists_collection_filter_model() override { return artists_collection_model_->filter(); }
   // CollectionFilter *albums_collection_filter_model() override { return albums_collection_model_->filter(); }
@@ -112,7 +107,7 @@ class NeteaseService : public StreamingService {
   const SharedPtr<NetworkAccessManager> network_;
 
   // OAuthenticator *oauth_;
-  NeteaseAuthenticator *netease_auth_;
+  SharedPtr<NeteaseAuthenticator> netease_auth_;
 
   // SharedPtr<CollectionBackend> artists_collection_backend_;
   // SharedPtr<CollectionBackend> albums_collection_backend_;
