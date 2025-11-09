@@ -32,11 +32,10 @@ NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
       netease_auth_(new NeteaseAuthenticator(this, network, this)),
       enabled_(false) {
 
-  // QObject::connect(oauth_, &OAuthenticator::AuthenticationFinished, this, &SpotifyService::OAuthFinished);
   QObject::connect(netease_auth_.get(), &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseService::AuthFinished);
 
   netease_auth_->LoadSession();
-  Authenticate(); // TODO: remove me
+  // Authenticate();
 
 }
 

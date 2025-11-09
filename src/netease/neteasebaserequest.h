@@ -33,17 +33,9 @@ class NeteaseBaseRequest : public QObject {
   using Param = QPair<QString, QString>;
   using ParamList = QList<Param>;
 
- public:
-  // static QUrl CreateUrl(const QUrl &server_url, const SubsonicSettings::AuthMethod auth_method, const QString &username, const QString &password, const QString &ressource_name, const ParamList &params_provided);
-
  protected:
   QNetworkReply *CreatePostRequest(const QString &ressource_name, const ParamList &params_provided) const;
   JsonObjectResult ParseJsonObject(QNetworkReply *reply);
-
-  // virtual void Error(const QString &error, const QVariant &debug = QVariant()) = 0;
-
- private Q_SLOTS:
-  // void HandleSSLErrors(const QList<QSslError> &ssl_errors);
 
  private:
   NeteaseService *service_;

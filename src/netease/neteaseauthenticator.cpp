@@ -123,50 +123,21 @@ void NeteaseAuthenticator::UnikeyRequestFinished(QNetworkReply *reply) {
   QObject::disconnect(reply, nullptr, this, nullptr);
   reply->deleteLater();
 
-  if (reply->error() != QNetworkReply::NoError) {
-    const QString error_message = QStringLiteral("%1 (%2)").arg(reply->errorString()).arg(reply->error());
-    Q_EMIT AuthenticationFinished(false, error_message);
-  }
-
-  const QByteArray data = reply->readAll();
-
-  QJsonParseError json_error;
-  const QJsonDocument json_document = QJsonDocument::fromJson(data, &json_error);
-  if (json_error.error != QJsonParseError::NoError) {
-    Q_EMIT AuthenticationFinished(false, QStringLiteral("Failed to parse Json data in authentication reply: %1").arg(json_error.errorString()));
+  const JsonObjectResult result = ParseJsonObject(reply);
+  if (result.error_code != ErrorCode::Success) {
+    Q_EMIT AuthenticationFinished(false, result.error_message);
     return;
   }
 
-  if (json_document.isEmpty()) {
-    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has empty Json document."_s);
-    return;
-  }
-  if (!json_document.isObject()) {
-    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has Json document that is not an object."_s);
-    return;
-  }
-
-  const QJsonObject json_object = json_document.object();
-  if (json_object.isEmpty()) {
-    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has empty Json object."_s);
-    return;
-  }
-
-  if (json_object.contains("msg"_L1) && json_object.contains("code"_L1)) {
-    const QString error = json_object["msg"_L1].toString();
-    const qint64 code = json_object["code"_L1].toInteger();
-    qLog(Debug) << json_object;
-    Q_EMIT AuthenticationFinished(false, QStringLiteral("%1 (%2)").arg(error, QString::number(code)));
-    return;
-  }
-
+  const QJsonObject &json_object = result.json_object;
   if (!json_object.contains("unikey"_L1)) {
     Q_EMIT AuthenticationFinished(false, u"Authentication reply from server is missing unikey."_s);
     return;
   }
 
   unikey_ = json_object["unikey"_L1].toString();
-  qLog(Debug) << unikey_;
+  qLog(Debug) << "Received unikey:" << unikey_;
+
   if (!timer_check_login_->isActive()) {
     timer_check_login_->start();
   }
@@ -180,42 +151,13 @@ void NeteaseAuthenticator::QrCheckRequestFinished(QNetworkReply *reply) {
   QObject::disconnect(reply, nullptr, this, nullptr);
   reply->deleteLater();
 
-  if (reply->error() != QNetworkReply::NoError) {
-    const QString error_message = QStringLiteral("%1 (%2)").arg(reply->errorString()).arg(reply->error());
-    Q_EMIT AuthenticationFinished(false, error_message);
-  }
-
-  const QByteArray data = reply->readAll();
-
-  QJsonParseError json_error;
-  const QJsonDocument json_document = QJsonDocument::fromJson(data, &json_error);
-  if (json_error.error != QJsonParseError::NoError) {
-    Q_EMIT AuthenticationFinished(false, QStringLiteral("Failed to parse Json data in authentication reply: %1").arg(json_error.errorString()));
+  const JsonObjectResult result = ParseJsonObject(reply);
+  if (result.error_code != ErrorCode::Success) {
+    Q_EMIT AuthenticationFinished(false, result.error_message);
     return;
   }
 
-  if (json_document.isEmpty()) {
-    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has empty Json document."_s);
-    return;
-  }
-  if (!json_document.isObject()) {
-    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has Json document that is not an object."_s);
-    return;
-  }
-
-  const QJsonObject json_object = json_document.object();
-  if (json_object.isEmpty()) {
-    Q_EMIT AuthenticationFinished(false, u"Authentication reply from server has empty Json object."_s);
-    return;
-  }
-
-  if (json_object.contains("msg"_L1) && json_object.contains("code"_L1)) {
-    const QString error = json_object["msg"_L1].toString();
-    const qint64 code = json_object["code"_L1].toInteger();
-    Q_EMIT AuthenticationFinished(false, QStringLiteral("%1 (%2)").arg(error, QString::number(code)));
-    return;
-  }
-
+  const QJsonObject &json_object = result.json_object;
   if (!json_object.contains("message"_L1) && !json_object.contains("code"_L1)) {
     Q_EMIT AuthenticationFinished(false, u"Authentication reply from server is missing message and code."_s);
     return;
@@ -225,20 +167,21 @@ void NeteaseAuthenticator::QrCheckRequestFinished(QNetworkReply *reply) {
   const QrLoginStatus status = static_cast<QrLoginStatus>(code);
 
   qLog(Debug) << json_object;
+
   switch (status) {
-    case QrLoginStatus::Timeout:
-      Q_EMIT AuthenticationFinished(false, u"Authentication failed, QRCode timeout reached"_s);
-      break;
+  case QrLoginStatus::Timeout:
+    Q_EMIT AuthenticationFinished(false, u"Authentication failed, QRCode timeout reached"_s);
+    break;
 
-    case QrLoginStatus::Waiting:
-      break;
+  case QrLoginStatus::Waiting:
+    break;
 
-    case QrLoginStatus::Scanning:
-      break;
+  case QrLoginStatus::Scanning:
+    break;
 
-    default:
-      Q_EMIT AuthenticationFinished(false, QStringLiteral("Authentication failed, unknown status code %1").arg(code));
-      break;
+  default:
+    Q_EMIT AuthenticationFinished(false, QStringLiteral("Authentication failed, unknown status code %1").arg(code));
+    break;
   }
 
 }

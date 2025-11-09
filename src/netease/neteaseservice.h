@@ -1,8 +1,6 @@
 #ifndef NETEASESERVICE_H
 #define NETEASESERVICE_H
 
-#include "config.h"
-
 #include <QList>
 #include <QString>
 #include <QScopedPointer>

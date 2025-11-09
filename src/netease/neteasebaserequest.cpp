@@ -1,7 +1,3 @@
-#include <qnetworkreply.h>
-#include <qnetworkrequest.h>
-#include <utility>
-
 #include <QtGlobal>
 #include <QObject>
 #include <QByteArray>
@@ -19,6 +15,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QNetworkCookie>
+#include <QNetworkCookieJar>
+#include <QRandomGenerator>
 
 #include "netease/neteasecrypto.h"
 #include "neteaseservice.h"
@@ -26,48 +25,89 @@
 
 using namespace Qt::Literals::StringLiterals;
 
-NeteaseBaseRequest::NeteaseBaseRequest(NeteaseService *service, QObject *parent)
-    : QObject(parent),
-      service_(service),
-      network_(new QNetworkAccessManager) {
+namespace {
 
-  // network_->setRedirectPolicy(QNetworkRequest::NoLessSafeRedirectPolicy);
+static const QStringList kUserAgents = {
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) "
+    "AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13B143 Safari/601.1"_L1,
+
+    "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Mobile Safari/537.36"_L1,
+
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36"_L1,
+
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36"_L1,
+
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 10_0 like Mac OS X) "
+    "AppleWebKit/602.1.38 (KHTML, like Gecko) Version/10.0 Mobile/14A300 Safari/602.1"_L1,
+};
+inline QByteArray RandomUserAgent() {
+    const QString &ua = kUserAgents.at(QRandomGenerator::global()->bounded(kUserAgents.size()));
+    return ua.toUtf8();
+}
 
 }
 
-QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &ressource_name, const ParamList &params_provided) const {
+NeteaseBaseRequest::NeteaseBaseRequest(NeteaseService *service, QObject *parent)
+    : QObject(parent),
+      service_(service),
+      network_(new QNetworkAccessManager) { }
 
-  QUrl url(QLatin1String(NeteaseService::kWebApiUrl) + ressource_name);
-  QNetworkRequest network_request(url);
-  network_request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded"_L1);
+QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_name, const ParamList &params_provided) const {
+
+  QUrl url(QLatin1String(NeteaseService::kWebApiUrl) + resource_name);
+
+  QList<QNetworkCookie> cookies;
+  if (network_ && network_->cookieJar())
+    cookies = network_->cookieJar()->cookiesForUrl(QUrl("https://music.163.com"_L1));
+
+  QString csrf_token;
+  for (const auto &cookie : cookies) {
+    if (cookie.name() == QByteArrayLiteral("__csrf")) {
+      csrf_token = QString::fromUtf8(cookie.value());
+      break;
+    }
+  }
+  if (!csrf_token.isEmpty())
+    url.setQuery(QUrlQuery{{"__csrf"_L1, csrf_token}});
+
+
+  QNetworkRequest req(url);
+  req.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded"_L1);
+  req.setRawHeader("Accept", "*/*");
+  req.setRawHeader("Accept-Language", "en-US,en;q=0.5");
+  req.setRawHeader("Connection", "keep-alive");
+  req.setRawHeader("Host", "music.163.com");
+  req.setRawHeader("Referer", "https://music.163.com");
+  req.setRawHeader("User-Agent", RandomUserAgent());
+
+  QStringList cookie_pairs;
+  cookie_pairs.reserve(cookies.size() + 2);
+  for (const auto &cookie : cookies) {
+    cookie_pairs << QString::fromUtf8(cookie.name()) + "="_L1 + QString::fromUtf8(cookie.value());
+  }
+  cookie_pairs << "os=pc"_L1 << "appver=2.7.1.198277"_L1;
+  req.setRawHeader("Cookie", cookie_pairs.join("; "_L1).toUtf8());
 
   QVariantMap params_map;
-  for (const auto &param : params_provided) {
-      params_map.insert(param.first, param.second);
-  }
-
+  for (const auto &param : params_provided)
+    params_map.insert(param.first, param.second);
   const QVariantMap encrypted = NeteaseCrypto::weapi(QJsonDocument::fromVariant(params_map));
 
-  QUrlQuery url_query;
-  url_query.addQueryItem("params"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encrypted.value("params"_L1).toString())));
-  url_query.addQueryItem("encSecKey"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encrypted.value("encSecKey"_L1).toString())));
-  const QByteArray query = url_query.toString(QUrl::FullyEncoded).toUtf8();
+  QUrlQuery body_query;
+  body_query.addQueryItem("params"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encrypted.value("params"_L1).toString())));
+  body_query.addQueryItem("encSecKey"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encrypted.value("encSecKey"_L1).toString())));
 
-  QNetworkReply *reply = network_->post(network_request, query);
-  // QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseBaseRequest::HandleSSLErrors);
-  // qLog(Debug) << "Netease: Sending request" << url;
+  const QByteArray body = body_query.toString(QUrl::FullyEncoded).toUtf8();
+
+  QNetworkReply *reply = network_->post(req, body);
+  // qLog(Debug) << "Netease: POST" << url;
 
   return reply;
 
 }
-
-// void NeteaseBaseRequest::HandleSSLErrors(const QList<QSslError> &ssl_errors) {
-//
-//   for (const QSslError &ssl_error : ssl_errors) {
-//     Error(ssl_error.errorString());
-//   }
-//
-// }
 
 JsonBaseRequest::JsonObjectResult NeteaseBaseRequest::ParseJsonObject(QNetworkReply *reply) {
 
