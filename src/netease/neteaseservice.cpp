@@ -35,13 +35,7 @@ NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
   QObject::connect(netease_auth_.get(), &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseService::AuthFinished);
 
   netease_auth_->LoadSession();
-  // Authenticate();
-
-}
-
-void NeteaseService::Authenticate() {
-
-  netease_auth_->Authenticate();
+  Authenticate();
 
 }
 
@@ -53,20 +47,16 @@ void NeteaseService::Exit() {
 
 }
 
-void NeteaseService::ClearSession() {
+bool NeteaseService::authenticated() const { return netease_auth_->authenticated(); }
 
-  netease_auth_->ClearSession();
+QList<QNetworkCookie> NeteaseService::cookies() const { return netease_auth_->cookies(); }
 
-}
+void NeteaseService::Authenticate() { netease_auth_->Authenticate(); }
+
+void NeteaseService::ClearSession() { netease_auth_->ClearSession(); }
 
 void NeteaseService::AuthFinished(const bool success, const QString &error) {
 
   qLog(Debug) << success << error;
-
-}
-
-bool NeteaseService::authenticated() const {
-
-    return netease_auth_->authenticated();
 
 }

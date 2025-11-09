@@ -57,8 +57,16 @@ void NeteaseAuthenticator::LoadSession() {
 
   Settings s;
   s.beginGroup(NeteaseSettings::kSettingsGroup);
-  // TODO: load session from settings, cookies for sure
+  QByteArray cookieData = s.value(NeteaseSettings::kCookies).toByteArray();
   s.endGroup();
+
+  QList<QNetworkCookie> loadedCookies;
+  for (const QByteArray &line : cookieData.split('\n')) {
+      if (!line.isEmpty())
+          loadedCookies.append(QNetworkCookie::parseCookies(line).first());
+  }
+
+  cookies_ = loadedCookies;
 
 }
 
@@ -68,7 +76,7 @@ void NeteaseAuthenticator::ClearSession() {
 
   Settings s;
   s.beginGroup(NeteaseSettings::kSettingsGroup);
-  // TODO: remove from settings etc...
+  s.remove(NeteaseSettings::kCookies);
   s.endGroup();
 
   StopCheckLoginTimer();
@@ -85,7 +93,10 @@ void NeteaseAuthenticator::StopCheckLoginTimer() {
 
 void NeteaseAuthenticator::Authenticate() {
 
-  CreateUnikeyRequest();
+  if (authenticated()) return;
+
+  // CreateUnikeyRequest();
+  CreateAnonimousRequest();
 
 }
 
@@ -110,6 +121,41 @@ QNetworkReply *NeteaseAuthenticator::CreateQrCheckRequest() {
   QNetworkReply *reply = CreatePostRequest("/weapi/login/qrcode/client/login"_L1, params);
   replies_ << reply;
   QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() { QrCheckRequestFinished(reply); });
+  QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseAuthenticator::HandleSSLErrors);
+
+  return reply;
+
+}
+
+QNetworkReply *NeteaseAuthenticator::CreateAnonimousRequest() {
+
+  const QByteArray ID_XOR_KEY_1 = QByteArrayLiteral("3go8&$833h0k(2)2");
+
+  auto cloudmusic_dll_encode_id = [ID_XOR_KEY_1](const QString &some_id) -> QByteArray {
+    QByteArray input = some_id.toUtf8();
+    QByteArray xored;
+    xored.resize(input.size());
+
+    for (int i = 0; i < input.size(); ++i) {
+      xored[i] = input[i] ^ ID_XOR_KEY_1[i % ID_XOR_KEY_1.size()];
+    }
+
+    QByteArray md5 = QCryptographicHash::hash(xored, QCryptographicHash::Md5);
+    return md5.toBase64();
+  };
+
+  const QString deviceId = QStringLiteral("NMUSIC");
+
+  const QByteArray encodedId = QString(deviceId + QStringLiteral(" ")
+    + QString::fromUtf8(cloudmusic_dll_encode_id(deviceId))
+  ).toUtf8().toBase64();
+
+  QUrl url(QLatin1String(NeteaseService::kApiUrl) + "/api/register/anonimous"_L1);
+  url.setQuery(QUrlQuery{{"username"_L1, QString::fromUtf8(encodedId)}});
+
+  QNetworkReply *reply = network_->get(QNetworkRequest(url));
+  replies_ << reply;
+  QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() { AnonimousRequestFinished(reply); });
   QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseAuthenticator::HandleSSLErrors);
 
   return reply;
@@ -183,6 +229,39 @@ void NeteaseAuthenticator::QrCheckRequestFinished(QNetworkReply *reply) {
     Q_EMIT AuthenticationFinished(false, QStringLiteral("Authentication failed, unknown status code %1").arg(code));
     break;
   }
+
+}
+
+void NeteaseAuthenticator::AnonimousRequestFinished(QNetworkReply *reply) {
+
+  if (!replies_.contains(reply)) return;
+  replies_.removeAll(reply);
+  QObject::disconnect(reply, nullptr, this, nullptr);
+  reply->deleteLater();
+
+  const JsonObjectResult result = ParseJsonObject(reply);
+  if (result.error_code != ErrorCode::Success) {
+    Q_EMIT AuthenticationFinished(false, result.error_message);
+    return;
+  }
+
+  const QJsonObject &json_object = result.json_object;
+  qLog(Debug) << json_object;
+
+  QVariant setCookieHeader = reply->header(QNetworkRequest::SetCookieHeader);
+  QList<QNetworkCookie> cookies = setCookieHeader.value<QList<QNetworkCookie>>();
+
+  QByteArray cookieData;
+  for (const QNetworkCookie &cookie : cookies) {
+      cookieData.append(cookie.toRawForm() + "\n");
+  }
+
+  Settings s;
+  s.beginGroup(NeteaseSettings::kSettingsGroup);
+  s.setValue(NeteaseSettings::kCookies, cookieData);
+  s.endGroup();
+
+  cookies_ = cookies;
 
 }
 

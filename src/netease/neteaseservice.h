@@ -4,10 +4,10 @@
 #include <QList>
 #include <QString>
 #include <QScopedPointer>
-#include <qcontainerfwd.h>
 
-#include "includes/shared_ptr.h"
 #include "core/song.h"
+#include "includes/shared_ptr.h"
+#include "core/networkaccessmanager.h"
 #include "streaming/streamingservice.h"
 #include "collection/collectionmodel.h"
 
@@ -52,7 +52,7 @@ class NeteaseService : public StreamingService {
   // bool remove_remastered() const { return remove_remastered_; }
 
   bool authenticated() const override;
-  // TODO: QString cookie() const;
+  QList<QNetworkCookie> cookies() const;
 
   // SharedPtr<CollectionBackend> artists_collection_backend() override { return artists_collection_backend_; }
   // SharedPtr<CollectionBackend> albums_collection_backend() override { return albums_collection_backend_; }

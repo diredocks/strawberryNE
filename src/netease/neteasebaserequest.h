@@ -15,6 +15,8 @@
 
 #include "includes/scoped_ptr.h"
 #include "core/jsonbaserequest.h"
+#include "core/networkaccessmanager.h"
+
 #include "neteaseservice.h"
 
 class QNetworkAccessManager;

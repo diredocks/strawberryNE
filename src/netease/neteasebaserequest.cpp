@@ -3,21 +3,9 @@
 #include <QByteArray>
 #include <QList>
 #include <QString>
-#include <QUrl>
-#include <QUrlQuery>
-#include <QNetworkAccessManager>
-#include <QNetworkRequest>
-#include <QNetworkReply>
 #include <QCryptographicHash>
-#include <QSslConfiguration>
-#include <QSslSocket>
-#include <QSslError>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonValue>
-#include <QNetworkCookie>
-#include <QNetworkCookieJar>
 #include <QRandomGenerator>
+#include <qlatin1stringview.h>
 
 #include "netease/neteasecrypto.h"
 #include "neteaseservice.h"
@@ -30,16 +18,12 @@ namespace {
 static const QStringList kUserAgents = {
     "Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) "
     "AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13B143 Safari/601.1"_L1,
-
     "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Mobile Safari/537.36"_L1,
-
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36"_L1,
-
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36"_L1,
-
     "Mozilla/5.0 (iPhone; CPU iPhone OS 10_0 like Mac OS X) "
     "AppleWebKit/602.1.38 (KHTML, like Gecko) Version/10.0 Mobile/14A300 Safari/602.1"_L1,
 };
@@ -60,19 +44,19 @@ QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_nam
   QUrl url(QLatin1String(NeteaseService::kWebApiUrl) + resource_name);
 
   QList<QNetworkCookie> cookies;
-  if (network_ && network_->cookieJar())
-    cookies = network_->cookieJar()->cookiesForUrl(QUrl("https://music.163.com"_L1));
+  if (service_->authenticated()) {
+    cookies = service_->cookies();
+  }
+  else if (network_ && network_->cookieJar()) {
+    cookies = network_->cookieJar()->cookiesForUrl(QUrl(QLatin1String(NeteaseService::kWebApiUrl)));
+  }
 
-  QString csrf_token;
   for (const auto &cookie : cookies) {
     if (cookie.name() == QByteArrayLiteral("__csrf")) {
-      csrf_token = QString::fromUtf8(cookie.value());
+      url.setQuery(QUrlQuery{{"csrf"_L1, QString::fromUtf8(cookie.value())}});
       break;
     }
   }
-  if (!csrf_token.isEmpty())
-    url.setQuery(QUrlQuery{{"__csrf"_L1, csrf_token}});
-
 
   QNetworkRequest req(url);
   req.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded"_L1);

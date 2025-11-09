@@ -11,6 +11,7 @@
 
 #include "includes/shared_ptr.h"
 #include "core/networkaccessmanager.h"
+
 #include "neteasebaserequest.h"
 
 class QTimer;
@@ -39,6 +40,7 @@ class NeteaseAuthenticator: public NeteaseBaseRequest {
   void StopCheckLoginTimer();
   QNetworkReply *CreateUnikeyRequest();
   QNetworkReply *CreateQrCheckRequest();
+  QNetworkReply *CreateAnonimousRequest();
 
  Q_SIGNALS:
   void Error(const QString &error);
@@ -48,6 +50,7 @@ class NeteaseAuthenticator: public NeteaseBaseRequest {
   void HandleSSLErrors(const QList<QSslError> &ssl_errors);
   void UnikeyRequestFinished(QNetworkReply *reply);
   void QrCheckRequestFinished(QNetworkReply *reply);
+  void AnonimousRequestFinished(QNetworkReply *reply);
 
  private:
   const SharedPtr<NetworkAccessManager> network_;
