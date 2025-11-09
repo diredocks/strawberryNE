@@ -34,10 +34,10 @@ inline QByteArray RandomUserAgent() {
 
 }
 
-NeteaseBaseRequest::NeteaseBaseRequest(NeteaseService *service, QObject *parent)
+NeteaseBaseRequest::NeteaseBaseRequest(const NeteaseService *service, const SharedPtr<NetworkAccessManager> network, QObject *parent)
     : QObject(parent),
       service_(service),
-      network_(new QNetworkAccessManager) { }
+      network_(network) { }
 
 QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_name, const ParamList &params_provided) const {
 
@@ -87,9 +87,18 @@ QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_nam
   const QByteArray body = body_query.toString(QUrl::FullyEncoded).toUtf8();
 
   QNetworkReply *reply = network_->post(req, body);
+  QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseBaseRequest::HandleSSLErrors);
   // qLog(Debug) << "Netease: POST" << url;
 
   return reply;
+
+}
+
+void NeteaseBaseRequest::HandleSSLErrors(const QList<QSslError> &ssl_errors) {
+
+  for (const QSslError &ssl_error : ssl_errors) {
+    Error(ssl_error.errorString());
+  }
 
 }
 

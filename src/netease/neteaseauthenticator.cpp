@@ -31,8 +31,8 @@ enum class QrLoginStatus : qint64 {
 };
 }
 
-NeteaseAuthenticator::NeteaseAuthenticator(NeteaseService *service, const SharedPtr<NetworkAccessManager> network, QObject *parent)
-  : NeteaseBaseRequest(service, parent),
+NeteaseAuthenticator::NeteaseAuthenticator(const NeteaseService *service, const SharedPtr<NetworkAccessManager> network, QObject *parent)
+  : NeteaseBaseRequest(service, network, parent),
     network_(network),
     timer_check_login_(new QTimer(this)) {
 

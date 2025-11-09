@@ -105,7 +105,7 @@ class NeteaseService : public StreamingService {
   const SharedPtr<NetworkAccessManager> network_;
 
   // OAuthenticator *oauth_;
-  SharedPtr<NeteaseAuthenticator> netease_auth_;
+  SharedPtr<NeteaseAuthenticator> auth_;
 
   // SharedPtr<CollectionBackend> artists_collection_backend_;
   // SharedPtr<CollectionBackend> albums_collection_backend_;

@@ -23,7 +23,7 @@ class NeteaseAuthenticator: public NeteaseBaseRequest {
   Q_OBJECT
 
  public:
-  explicit NeteaseAuthenticator(NeteaseService *service, const SharedPtr<NetworkAccessManager> network, QObject *parent = nullptr);
+  explicit NeteaseAuthenticator(const NeteaseService *service, const SharedPtr<NetworkAccessManager> network, QObject *parent = nullptr);
   ~NeteaseAuthenticator() override;
 
   QList<QNetworkCookie> cookies() const { return cookies_; }
@@ -43,7 +43,7 @@ class NeteaseAuthenticator: public NeteaseBaseRequest {
   QNetworkReply *CreateAnonimousRequest();
 
  Q_SIGNALS:
-  void Error(const QString &error);
+  void Error(const QString &error, const QVariant &debug = QVariant()) override;
   void AuthenticationFinished(const bool success, const QString &error = QString());
 
  private Q_SLOTS:

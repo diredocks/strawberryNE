@@ -29,12 +29,12 @@ NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
                                QObject *parent)
     : StreamingService(Song::Source::Netease, u"Netease"_s, u"netease"_s, QLatin1String(NeteaseSettings::kSettingsGroup), parent),
       network_(network),
-      netease_auth_(new NeteaseAuthenticator(this, network, this)),
+      auth_(new NeteaseAuthenticator(this, network, this)),
       enabled_(false) {
 
-  QObject::connect(netease_auth_.get(), &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseService::AuthFinished);
+  QObject::connect(auth_.get(), &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseService::AuthFinished);
 
-  netease_auth_->LoadSession();
+  auth_->LoadSession();
   Authenticate();
 
 }
@@ -47,13 +47,13 @@ void NeteaseService::Exit() {
 
 }
 
-bool NeteaseService::authenticated() const { return netease_auth_->authenticated(); }
+bool NeteaseService::authenticated() const { return auth_->authenticated(); }
 
-QList<QNetworkCookie> NeteaseService::cookies() const { return netease_auth_->cookies(); }
+QList<QNetworkCookie> NeteaseService::cookies() const { return auth_->cookies(); }
 
-void NeteaseService::Authenticate() { netease_auth_->Authenticate(); }
+void NeteaseService::Authenticate() { auth_->Authenticate(); }
 
-void NeteaseService::ClearSession() { netease_auth_->ClearSession(); }
+void NeteaseService::ClearSession() { auth_->ClearSession(); }
 
 void NeteaseService::AuthFinished(const bool success, const QString &error) {
 

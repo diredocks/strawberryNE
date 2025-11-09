@@ -13,7 +13,6 @@
 #include <QSslError>
 #include <QJsonObject>
 
-#include "includes/scoped_ptr.h"
 #include "core/jsonbaserequest.h"
 #include "core/networkaccessmanager.h"
 
@@ -26,7 +25,18 @@ class NeteaseBaseRequest : public QObject {
   Q_OBJECT
 
  public:
-  explicit NeteaseBaseRequest(NeteaseService *service, QObject *parent = nullptr);
+  explicit NeteaseBaseRequest(const NeteaseService *service, const SharedPtr<NetworkAccessManager> network, QObject *parent = nullptr);
+
+  enum class Type {
+    None,
+    FavouriteArtists,
+    FavouriteAlbums,
+    FavouriteSongs,
+    SearchArtists,
+    SearchAlbums,
+    SearchSongs,
+    StreamURL,
+  };
 
   using JsonObjectResult = JsonBaseRequest::JsonObjectResult;
   using ErrorCode = JsonBaseRequest::ErrorCode;
@@ -35,13 +45,18 @@ class NeteaseBaseRequest : public QObject {
   using Param = QPair<QString, QString>;
   using ParamList = QList<Param>;
 
+  virtual void Error(const QString &error, const QVariant &debug = QVariant()) = 0;
+
  protected:
   QNetworkReply *CreatePostRequest(const QString &ressource_name, const ParamList &params_provided) const;
   JsonObjectResult ParseJsonObject(QNetworkReply *reply);
 
+ private Q_SLOTS:
+  void HandleSSLErrors(const QList<QSslError> &ssl_errors);
+
  private:
-  NeteaseService *service_;
-  ScopedPtr<QNetworkAccessManager> network_;
+  const NeteaseService *service_;
+  const SharedPtr<QNetworkAccessManager> network_;
 };
 
 #endif
