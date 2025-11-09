@@ -7,6 +7,7 @@
 #include <QRandomGenerator>
 #include <qlatin1stringview.h>
 
+#include "core/logging.h"
 #include "netease/neteasecrypto.h"
 #include "neteaseservice.h"
 #include "neteasebaserequest.h"
@@ -51,12 +52,23 @@ QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_nam
     cookies = network_->cookieJar()->cookiesForUrl(QUrl(QLatin1String(NeteaseService::kWebApiUrl)));
   }
 
-  for (const auto &cookie : cookies) {
-    if (cookie.name() == QByteArrayLiteral("__csrf")) {
-      url.setQuery(QUrlQuery{{"csrf"_L1, QString::fromUtf8(cookie.value())}});
-      break;
-    }
-  }
+  QVariantMap params_map;
+  for (const auto &param : params_provided)
+    params_map.insert(param.first, param.second);
+  const QVariantMap encrypted = NeteaseCrypto::weapi(QJsonDocument::fromVariant(params_map));
+
+  QUrlQuery body_query;
+  body_query.addQueryItem("params"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encrypted.value("params"_L1).toString())));
+  body_query.addQueryItem("encSecKey"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encrypted.value("encSecKey"_L1).toString())));
+
+  QString csrf_token(""_L1);
+  for (const auto &cookie : cookies)
+    if (cookie.name() == QByteArrayLiteral("__csrf"))
+      csrf_token = QString::fromUtf8(cookie.value());
+  url.setQuery(QUrlQuery{{"csrf_token"_L1, csrf_token}});
+  body_query.addQueryItem("csrf_token"_L1, csrf_token);
+
+  const QByteArray body = body_query.toString(QUrl::FullyEncoded).toUtf8();
 
   QNetworkRequest req(url);
   req.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded"_L1);
@@ -75,20 +87,17 @@ QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_nam
   cookie_pairs << "os=pc"_L1 << "appver=2.7.1.198277"_L1;
   req.setRawHeader("Cookie", cookie_pairs.join("; "_L1).toUtf8());
 
-  QVariantMap params_map;
-  for (const auto &param : params_provided)
-    params_map.insert(param.first, param.second);
-  const QVariantMap encrypted = NeteaseCrypto::weapi(QJsonDocument::fromVariant(params_map));
-
-  QUrlQuery body_query;
-  body_query.addQueryItem("params"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encrypted.value("params"_L1).toString())));
-  body_query.addQueryItem("encSecKey"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encrypted.value("encSecKey"_L1).toString())));
-
-  const QByteArray body = body_query.toString(QUrl::FullyEncoded).toUtf8();
-
   QNetworkReply *reply = network_->post(req, body);
   QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseBaseRequest::HandleSSLErrors);
+
   // qLog(Debug) << "Netease: POST" << url;
+  // qLog(Debug) << "Headers:";
+  // const auto rawHeaders = req.rawHeaderList();
+  // for (const auto &header : rawHeaders) {
+  //   qLog(Debug) << "  " << header << ":" << req.rawHeader(header);
+  // }
+  // qLog(Debug) << "Cookies:" << cookie_pairs.join("; "_L1).toUtf8();
+  // qLog(Debug) << "Body:" << QString::fromUtf8(body);
 
   return reply;
 
