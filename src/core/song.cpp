@@ -1125,10 +1125,12 @@ Song::Source Song::SourceFromURL(const QUrl &url) {
   if (url.scheme() == u"tidal"_s) return Source::Tidal;
   if (url.scheme() == u"spotify"_s) return Source::Spotify;
   if (url.scheme() == u"qobuz"_s) return Source::Qobuz;
+  if (url.scheme() == u"netease"_s) return Source::Netease;
   if (url.scheme() == u"http"_s || url.scheme() == u"https"_s || url.scheme() == u"rtsp"_s) {
     if (url.host().endsWith("tidal.com"_L1, Qt::CaseInsensitive)) { return Source::Tidal; }
     if (url.host().endsWith("spotify.com"_L1, Qt::CaseInsensitive)) { return Source::Spotify; }
     if (url.host().endsWith("qobuz.com"_L1, Qt::CaseInsensitive)) { return Source::Qobuz; }
+    if (url.host().endsWith("music.163.com"_L1, Qt::CaseInsensitive)) { return Source::Netease; }
     if (url.host().endsWith("somafm.com"_L1, Qt::CaseInsensitive)) { return Source::SomaFM; }
     if (url.host().endsWith("radioparadise.com"_L1, Qt::CaseInsensitive)) { return Source::RadioParadise; }
     return Source::Stream;
@@ -1149,6 +1151,7 @@ QString Song::TextForSource(const Source source) {
     case Source::Tidal:         return u"tidal"_s;
     case Source::Spotify:       return u"spotify"_s;
     case Source::Qobuz:         return u"qobuz"_s;
+    case Source::Netease:       return u"netease"_s;
     case Source::SomaFM:        return u"somafm"_s;
     case Source::RadioParadise: return u"radioparadise"_s;
     case Source::Unknown:       return u"unknown"_s;
@@ -1169,6 +1172,7 @@ QString Song::DescriptionForSource(const Source source) {
     case Source::Tidal:         return u"Tidal"_s;
     case Source::Spotify:       return u"Spotify"_s;
     case Source::Qobuz:         return u"Qobuz"_s;
+    case Source::Netease:       return u"Netease"_s;
     case Source::SomaFM:        return u"SomaFM"_s;
     case Source::RadioParadise: return u"Radio Paradise"_s;
     case Source::Unknown:       return u"Unknown"_s;
@@ -1188,6 +1192,7 @@ Song::Source Song::SourceFromText(const QString &source) {
   if (source.compare("tidal"_L1, Qt::CaseInsensitive) == 0) return Source::Tidal;
   if (source.compare("spotify"_L1, Qt::CaseInsensitive) == 0) return Source::Spotify;
   if (source.compare("qobuz"_L1, Qt::CaseInsensitive) == 0) return Source::Qobuz;
+  if (source.compare("netease"_L1, Qt::CaseInsensitive) == 0) return Source::Netease;
   if (source.compare("somafm"_L1, Qt::CaseInsensitive) == 0) return Source::SomaFM;
   if (source.compare("radioparadise"_L1, Qt::CaseInsensitive) == 0) return Source::RadioParadise;
 
@@ -1207,6 +1212,7 @@ QIcon Song::IconForSource(const Source source) {
     case Source::Tidal:         return IconLoader::Load(u"tidal"_s);
     case Source::Spotify:       return IconLoader::Load(u"spotify"_s);
     case Source::Qobuz:         return IconLoader::Load(u"qobuz"_s);
+    case Source::Netease:       return IconLoader::Load(u"netease"_s);
     case Source::SomaFM:        return IconLoader::Load(u"somafm"_s);
     case Source::RadioParadise: return IconLoader::Load(u"radioparadise"_s);
     case Source::Unknown:       return IconLoader::Load(u"edit-delete"_s);
@@ -1475,6 +1481,8 @@ QString Song::ImageCacheDir(const Source source) {
       return StandardPaths::WritableLocation(StandardPaths::StandardLocation::AppLocalDataLocation) + u"/spotifyalbumcovers"_s;
     case Source::Qobuz:
       return StandardPaths::WritableLocation(StandardPaths::StandardLocation::AppLocalDataLocation) + u"/qobuzalbumcovers"_s;
+    case Source::Netease:
+      return StandardPaths::WritableLocation(StandardPaths::StandardLocation::AppLocalDataLocation) + u"/neteasealbumcovers"_s;
     case Source::Device:
       return StandardPaths::WritableLocation(StandardPaths::StandardLocation::AppLocalDataLocation) + u"/devicealbumcovers"_s;
     case Source::LocalFile:

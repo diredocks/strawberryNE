@@ -90,6 +90,10 @@
 #  include "qobuz/qobuzservice.h"
 #  include "qobuzsettingspage.h"
 #endif
+#ifdef HAVE_NETEASE
+#  include "netease/neteaseservice.h"
+#  include "neteasesettingspage.h"
+#endif
 
 #include "ui_settingsdialog.h"
 
@@ -144,7 +148,7 @@ SettingsDialog::SettingsDialog(const SharedPtr<Player> player,
   AddPage(Page::Moodbar, new MoodbarSettingsPage(this, this), iface);
 #endif
 
-#if defined(HAVE_SUBSONIC) || defined(HAVE_TIDAL) || defined(HAVE_SPOTIFY) || defined(HAVE_QOBUZ)
+#if defined(HAVE_SUBSONIC) || defined(HAVE_TIDAL) || defined(HAVE_SPOTIFY) || defined(HAVE_QOBUZ) || defined(HAVE_NETEASE)
   QTreeWidgetItem *streaming = AddCategory(tr("Streaming"));
 #endif
 
@@ -159,6 +163,9 @@ SettingsDialog::SettingsDialog(const SharedPtr<Player> player,
 #endif
 #ifdef HAVE_QOBUZ
   AddPage(Page::Qobuz, new QobuzSettingsPage(this, streaming_services->Service<QobuzService>(), this), streaming);
+#endif
+#ifdef HAVE_NETEASE
+  AddPage(Page::Netease, new NeteaseSettingsPage(this, streaming_services->Service<NeteaseService>(), this), streaming);
 #endif
 
   // List box

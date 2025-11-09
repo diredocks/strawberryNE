@@ -24,6 +24,8 @@
 
 #include <cmath>
 #include <algorithm>
+#include <qlatin1stringview.h>
+#include <qobject.h>
 #include <utility>
 #include <functional>
 #include <chrono>
@@ -178,6 +180,10 @@
 #endif
 #ifdef HAVE_QOBUZ
 #  include "constants/qobuzsettings.h"
+#endif
+#ifdef HAVE_NETEASE
+#  include "netease/neteaseservice.h"
+#  include "constants/neteasesettings.h"
 #endif
 
 #include "streaming/streamingservices.h"
@@ -360,6 +366,9 @@ MainWindow::MainWindow(Application *app,
 #ifdef HAVE_QOBUZ
       qobuz_view_(new StreamingTabsView(app->streaming_services()->ServiceBySource(Song::Source::Qobuz), app->albumcover_loader(), QLatin1String(QobuzSettings::kSettingsGroup), this)),
 #endif
+#ifdef HAVE_NETEASE
+      netease_view_(new StreamingTabsView(app->streaming_services()->ServiceBySource(Song::Source::Netease), app->albumcover_loader(), QLatin1String(NeteaseSettings::kSettingsGroup), this)),
+#endif
       radio_view_(new RadioViewContainer(this)),
       lastfm_import_dialog_(new LastFMImportDialog(app_->lastfm_import(), this)),
       collection_show_all_(nullptr),
@@ -444,6 +453,9 @@ MainWindow::MainWindow(Application *app,
 #endif
 #ifdef HAVE_QOBUZ
   ui_->tabs->AddTab(qobuz_view_, u"qobuz"_s, IconLoader::Load(u"qobuz"_s, true, 0, 32), tr("Qobuz"));
+#endif
+#ifdef HAVE_NETEASE
+  ui_->tabs->AddTab(netease_view_, u"netease"_s, IconLoader::Load(u"netease"_s, true, 0, 32), tr("Netease"));
 #endif
 
   // Add the playing widget to the fancy tab widget
@@ -781,6 +793,11 @@ MainWindow::MainWindow(Application *app,
   if (SpotifyServicePtr spotifyservice = app_->streaming_services()->Service<SpotifyService>()) {
     QObject::connect(&*spotifyservice, &SpotifyService::UpdateSpotifyAccessToken, &*app_->player()->engine(), &EngineBase::UpdateSpotifyAccessToken);
   }
+#endif
+
+#ifdef HAVE_NETEASE
+  QObject::connect(netease_view_, &StreamingTabsView::OpenSettingsDialog, this, &MainWindow::OpenServiceSettingsDialog);
+  QObject::connect(netease_view_->search_view(), &StreamingSearchView::OpenSettingsDialog, this, &MainWindow::OpenServiceSettingsDialog);
 #endif
 
   QObject::connect(radio_view_, &RadioViewContainer::Refresh, &*app_->radio_services(), &RadioServices::RefreshChannels);
@@ -1275,6 +1292,18 @@ void MainWindow::ReloadSettings() {
   }
   else {
     ui_->tabs->DisableTab(qobuz_view_);
+  }
+#endif
+
+#ifdef HAVE_NETEASE
+  s.beginGroup(NeteaseSettings::kSettingsGroup);
+  bool enable_netease = s.value(NeteaseSettings::kEnabled, false).toBool();
+  s.endGroup();
+  if (enable_netease) {
+    ui_->tabs->EnableTab(netease_view_);
+  }
+  else {
+    ui_->tabs->DisableTab(netease_view_);
   }
 #endif
 
@@ -2690,6 +2719,9 @@ void MainWindow::OpenServiceSettingsDialog(const Song::Source source) {
       break;
     case Song::Source::Spotify:
       settings_dialog_->OpenAtPage(SettingsDialog::Page::Spotify);
+      break;
+    case Song::Source::Netease:
+      settings_dialog_->OpenAtPage(SettingsDialog::Page::Netease);
       break;
     default:
       break;

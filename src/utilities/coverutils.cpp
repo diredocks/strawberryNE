@@ -130,6 +130,7 @@ QString CoverUtils::CoverFilenameFromSource(const Song::Source source, const QUr
     case Song::Source::Subsonic:
     case Song::Source::Spotify:
     case Song::Source::Qobuz:
+    case Song::Source::Netease:
       if (!album_id.isEmpty()) {
         filename = album_id;
         break;

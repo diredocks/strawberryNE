@@ -1487,6 +1487,7 @@ optional_source(HAVE_NETEASE
     src/netease/neteaseauthenticator.cpp
     src/netease/neteasecrypto.cpp
     src/netease/neteasebaserequest.cpp
+    src/settings/neteasesettingspage.cpp
     src/covermanager/neteasecoverprovider.cpp
     src/lyrics/neteaselyricsprovider.cpp
     src/utilities/neteaseprovider.cpp
@@ -1495,9 +1496,12 @@ optional_source(HAVE_NETEASE
     src/netease/neteaseauthenticator.h
     src/netease/neteasecrypto.h
     src/netease/neteasebaserequest.h
+    src/settings/neteasesettingspage.h
     src/covermanager/neteasecoverprovider.h
     src/lyrics/neteaselyricsprovider.h
     src/utilities/neteaseprovider.h
+  UI
+    src/settings/neteasesettingspage.ui
 )
 
 qt_wrap_cpp(SOURCES ${HEADERS})
