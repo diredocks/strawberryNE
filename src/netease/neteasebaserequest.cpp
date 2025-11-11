@@ -8,7 +8,6 @@
 #include <QCryptographicHash>
 #include <QRandomGenerator>
 
-#include "core/logging.h"
 #include "netease/neteasecrypto.h"
 #include "neteaseservice.h"
 #include "neteasebaserequest.h"
