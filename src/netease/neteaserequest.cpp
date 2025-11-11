@@ -820,7 +820,6 @@ void NeteaseRequest::SongsReceived(QNetworkReply *reply, const Artist &artist, c
     Error(u"Empty JSON object."_s);
     return;
   }
-  qLog(Debug) << root;
 
   const int code = root.value("code"_L1).toInt();
   if (code != 200) {
