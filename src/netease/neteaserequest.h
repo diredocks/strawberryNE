@@ -84,8 +84,10 @@ class NeteaseRequest : public NeteaseBaseRequest {
 
   void SongsReplyReceived(QNetworkReply *reply, const int limit_requested, const int offset_requested);
   void SongsReceived(QNetworkReply *reply, const NeteaseRequest::Artist &artist, const NeteaseRequest::Album &album, const int limit_requested, const int offset_requested);
+  void AlbumSongsReceived(QNetworkReply *reply, const NeteaseRequest::Artist &artist, const NeteaseRequest::Album &album, const int limit_requested, const int offset_requested);
 
   void ArtistAlbumsReplyReceived(QNetworkReply *reply, const NeteaseRequest::Artist &artist, const int offset_requested);
+  void ArtistAlbumsReceived(QNetworkReply *reply, const NeteaseRequest::Artist &artist_artist, const int limit_requested, const int offset_requested);
   void AlbumSongsReplyReceived(QNetworkReply *reply, const NeteaseRequest::Artist &artist, const NeteaseRequest::Album &album, const int offset_requested);
   void AlbumCoverReceived(QNetworkReply *reply, const QString &album_id, const QUrl &url, const QString &filename);
 
@@ -123,6 +125,10 @@ class NeteaseRequest : public NeteaseBaseRequest {
   void AddAlbumSongsRequest(const Artist &artist, const Album &album, const int offset = 0);
   void FlushAlbumSongsRequests();
 
+  // void AddSongRequest(const Song &song);
+  // void FlushSongRequests();
+  // void SongFinishCheck();
+
   void ParseSong(Song &song, const QJsonObject &json_obj, const Artist &album_artist, const Album &album);
 
   void GetAlbumCoversCheck();
@@ -152,6 +158,7 @@ class NeteaseRequest : public NeteaseBaseRequest {
   QQueue<Request> artists_requests_queue_;
   QQueue<Request> albums_requests_queue_;
   QQueue<Request> songs_requests_queue_;
+  // QQueue<Song> song_requests_queue_;
 
   QQueue<ArtistAlbumsRequest> artist_albums_requests_queue_;
   QQueue<AlbumSongsRequest> album_songs_requests_queue_;
@@ -161,18 +168,21 @@ class NeteaseRequest : public NeteaseBaseRequest {
   QMap<QString, AlbumSongsRequest> album_songs_requests_pending_;
   QMultiMap<QString, QString> album_covers_requests_sent_;
 
+  // search artists
   int artists_requests_total_;
   int artists_requests_active_;
   int artists_requests_received_;
   int artists_total_;
   int artists_received_;
 
+  // search albums
   int albums_requests_total_;
   int albums_requests_active_;
   int albums_requests_received_;
   int albums_total_;
   int albums_received_;
 
+  // search songs
   int songs_requests_total_;
   int songs_requests_active_;
   int songs_requests_received_;
@@ -195,11 +205,17 @@ class NeteaseRequest : public NeteaseBaseRequest {
   int album_covers_requests_active_;
   int album_covers_requests_received_;
 
+  // // get song url
+  // int song_requests_active_;
+  // int song_requests_received_;
+  // int song_requests_total_;
+
   SongMap songs_;
   bool no_results_;
   QString error_;
 };
 
-using NeteaseRequestPtr = QScopedPointer<NeteaseRequest, QScopedPointerDeleteLater>;
+using NeteaseRequestPtr = SharedPtr<NeteaseRequest>;
+// using NeteaseRequestPtr = QScopedPointer<NeteaseRequest, QScopedPointerObjectDeleteLater<NeteaseRequest>>;
 
 #endif

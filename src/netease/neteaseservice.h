@@ -17,10 +17,10 @@ class TaskManager;
 class Database;
 class NetworkAccessManager;
 class AlbumCoverLoader;
-class NeteaseBaseRequest;
+class NeteaseRequest;
 class NeteaseAuthenticator;
 
-// using SpotifyRequestPtr = QScopedPointer<SpotifyRequest, QScopedPointerDeleteLater>;
+using NeteaseRequestPtr = SharedPtr<NeteaseRequest>;
 
 class NeteaseService : public StreamingService {
   Q_OBJECT
@@ -39,16 +39,16 @@ class NeteaseService : public StreamingService {
   static const char kWebApiUrl[];
 
   void Exit() override;
-  // TODO: void ReloadSettings() override;
+  void ReloadSettings() override;
 
-  // TODO: int Search(const QString &text, const SearchType type) override;
-  // TODO: void CancelSearch() override;
+  int Search(const QString &text, const SearchType type) override;
+  void CancelSearch() override;
 
-  // int artistssearchlimit() const { return artistssearchlimit_; }
-  // int albumssearchlimit() const { return albumssearchlimit_; }
-  // int songssearchlimit() const { return songssearchlimit_; }
-  // bool fetchalbums() const { return fetchalbums_; }
-  // bool download_album_covers() const { return download_album_covers_; }
+  int artistssearchlimit() const { return artistssearchlimit_; }
+  int albumssearchlimit() const { return albumssearchlimit_; }
+  int songssearchlimit() const { return songssearchlimit_; }
+  bool fetchalbums() const { return fetchalbums_; }
+  bool download_album_covers() const { return download_album_covers_; }
   // bool remove_remastered() const { return remove_remastered_; }
 
   bool authenticated() const override;
@@ -67,44 +67,42 @@ class NeteaseService : public StreamingService {
   // CollectionFilter *songs_collection_filter_model() override { return songs_collection_model_->filter(); }
  
  // Q_SIGNALS:
- //  void UpdateSpotifyAccessToken(const QString &access_token);
+ //  void UpdateNeteaseAccessToken(const QString &access_token);
 
  public Q_SLOTS:
   void Authenticate();
   void ClearSession();
-  // void GetArtists() override;
-  // void GetAlbums() override;
-  // void GetSongs() override;
-  // void ResetArtistsRequest() override;
-  // void ResetAlbumsRequest() override;
-  // void ResetSongsRequest() override;
+  void GetArtists() override;
+  void GetAlbums() override;
+  void GetSongs() override;
+  void ResetArtistsRequest() override;
+  void ResetAlbumsRequest() override;
+  void ResetSongsRequest() override;
 
  private Q_SLOTS:
-  // TODO: void ExitReceived();
+  void ExitReceived();
   void AuthFinished(const bool success, const QString &error = QString());
-  // TODO: void StartSearch();
-  //
-  // void ArtistsResultsReceived(const int id, const SongMap &songs, const QString &error);
-  // void AlbumsResultsReceived(const int id, const SongMap &songs, const QString &error);
-  // void SongsResultsReceived(const int id, const SongMap &songs, const QString &error);
-  // void SearchResultsReceived(const int id, const SongMap &songs, const QString &error);
-  // void ArtistsUpdateStatusReceived(const int id, const QString &text);
-  // void AlbumsUpdateStatusReceived(const int id, const QString &text);
-  // void SongsUpdateStatusReceived(const int id, const QString &text);
-  // void ArtistsProgressSetMaximumReceived(const int id, const int max);
-  // void AlbumsProgressSetMaximumReceived(const int id, const int max);
-  // void SongsProgressSetMaximumReceived(const int id, const int max);
-  // void ArtistsUpdateProgressReceived(const int id, const int progress);
-  // void AlbumsUpdateProgressReceived(const int id, const int progress);
-  // void SongsUpdateProgressReceived(const int id, const int progress);
+  void StartSearch();
+  void ArtistsResultsReceived(const int id, const SongMap &songs, const QString &error);
+  void AlbumsResultsReceived(const int id, const SongMap &songs, const QString &error);
+  void SongsResultsReceived(const int id, const SongMap &songs, const QString &error);
+  void SearchResultsReceived(const int id, const SongMap &songs, const QString &error);
+  void ArtistsUpdateStatusReceived(const int id, const QString &text);
+  void AlbumsUpdateStatusReceived(const int id, const QString &text);
+  void SongsUpdateStatusReceived(const int id, const QString &text);
+  void ArtistsProgressSetMaximumReceived(const int id, const int max);
+  void AlbumsProgressSetMaximumReceived(const int id, const int max);
+  void SongsProgressSetMaximumReceived(const int id, const int max);
+  void ArtistsUpdateProgressReceived(const int id, const int progress);
+  void AlbumsUpdateProgressReceived(const int id, const int progress);
+  void SongsUpdateProgressReceived(const int id, const int progress);
 
  private:
-  // TODO: void SendSearch();
+  void SendSearch();
 
  private:
   const SharedPtr<NetworkAccessManager> network_;
 
-  // OAuthenticator *oauth_;
   SharedPtr<NeteaseAuthenticator> auth_;
 
   // SharedPtr<CollectionBackend> artists_collection_backend_;
@@ -115,31 +113,31 @@ class NeteaseService : public StreamingService {
   // CollectionModel *albums_collection_model_;
   // CollectionModel *songs_collection_model_;
 
-  // QTimer *timer_search_delay_;
+  QTimer *timer_search_delay_;
 
-  // SpotifyRequestPtr artists_request_;
-  // SpotifyRequestPtr albums_request_;
-  // SpotifyRequestPtr songs_request_;
-  // SpotifyRequestPtr search_request_;
-  // SpotifyFavoriteRequest *favorite_request_;
+  NeteaseRequestPtr artists_request_;
+  NeteaseRequestPtr albums_request_;
+  NeteaseRequestPtr songs_request_;
+  NeteaseRequestPtr search_request_;
+  // NeteaseFavoriteRequest *favorite_request_;
 
   bool enabled_;
-  // int artistssearchlimit_;
-  // int albumssearchlimit_;
-  // int songssearchlimit_;
-  // bool fetchalbums_;
-  // bool download_album_covers_;
+  int artistssearchlimit_;
+  int albumssearchlimit_;
+  int songssearchlimit_;
+  bool fetchalbums_;
+  bool download_album_covers_;
   // bool remove_remastered_;
 
-  // int pending_search_id_;
-  // int next_pending_search_id_;
-  // QString pending_search_text_;
-  // SearchType pending_search_type_;
-  //
-  // int search_id_;
-  // QString search_text_;
-  //
-  // QList<QObject*> wait_for_exit_;
+  int pending_search_id_;
+  int next_pending_search_id_;
+  QString pending_search_text_;
+  SearchType pending_search_type_;
+
+  int search_id_;
+  QString search_text_;
+
+  QList<QObject*> wait_for_exit_;
 };
 
 using NeteaseServicePtr = SharedPtr<NeteaseService>;

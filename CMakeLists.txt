@@ -1486,6 +1486,7 @@ optional_source(HAVE_NETEASE
     src/netease/neteaseservice.cpp
     src/netease/neteaseauthenticator.cpp
     src/netease/neteasecrypto.cpp
+    src/netease/neteaserequest.cpp
     src/netease/neteasebaserequest.cpp
     src/settings/neteasesettingspage.cpp
     src/covermanager/neteasecoverprovider.cpp
@@ -1495,6 +1496,7 @@ optional_source(HAVE_NETEASE
     src/netease/neteaseservice.h
     src/netease/neteaseauthenticator.h
     src/netease/neteasecrypto.h
+    src/netease/neteaserequest.h
     src/netease/neteasebaserequest.h
     src/settings/neteasesettingspage.h
     src/covermanager/neteasecoverprovider.h

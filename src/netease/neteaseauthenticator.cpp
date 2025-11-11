@@ -95,8 +95,8 @@ void NeteaseAuthenticator::Authenticate() {
 
   if (authenticated()) return;
 
-  CreateUnikeyRequest();
-  // CreateAnonimousRequest();
+  // CreateUnikeyRequest();
+  CreateAnonimousRequest();
 
 }
 

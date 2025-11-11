@@ -16,10 +16,9 @@
 #include "core/jsonbaserequest.h"
 #include "core/networkaccessmanager.h"
 
-#include "neteaseservice.h"
-
-class QNetworkAccessManager;
 class QNetworkReply;
+class QNetworkAccessManager;
+class NeteaseService;
 
 class NeteaseBaseRequest : public QObject {
   Q_OBJECT
@@ -38,8 +37,12 @@ class NeteaseBaseRequest : public QObject {
     StreamURL,
   };
 
+  using JsonValueResult  = JsonBaseRequest::JsonValueResult;
   using JsonObjectResult = JsonBaseRequest::JsonObjectResult;
+  using JsonArrayResult = JsonBaseRequest::JsonArrayResult;
   using ErrorCode = JsonBaseRequest::ErrorCode;
+
+  static JsonObjectResult ParseJsonObject(QNetworkReply *reply);
 
  protected:
   using Param = QPair<QString, QString>;
@@ -48,14 +51,20 @@ class NeteaseBaseRequest : public QObject {
   virtual void Error(const QString &error, const QVariant &debug = QVariant()) = 0;
 
  protected:
-  QNetworkReply *CreatePostRequest(const QString &ressource_name, const ParamList &params_provided) const;
-  JsonObjectResult ParseJsonObject(QNetworkReply *reply);
+  inline JsonObjectResult GetJsonObject(const QByteArray &data) { return JsonBaseRequest::GetJsonObject(data); }
+  inline JsonValueResult GetJsonValue(const QJsonObject &json_object, const QString &name) { return JsonBaseRequest::GetJsonValue(json_object, name); }
+  inline JsonObjectResult GetJsonObject(const QJsonObject &json_object, const QString &name) { return JsonBaseRequest::GetJsonObject(json_object, name); }
+  inline JsonArrayResult GetJsonArray(const QJsonObject &json_object, const QString &name) { return JsonBaseRequest::GetJsonArray(json_object, name); }
+
+  QNetworkReply *CreatePostRequest(const QString &ressource_name, const ParamList &params_provided);
+
+  const NeteaseService *service_;
+  QList<QNetworkReply*> replies_;
 
  private Q_SLOTS:
   void HandleSSLErrors(const QList<QSslError> &ssl_errors);
 
  private:
-  const NeteaseService *service_;
   const SharedPtr<QNetworkAccessManager> network_;
 };
 
