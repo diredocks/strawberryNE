@@ -61,9 +61,11 @@ void NeteaseAuthenticator::LoadSession() {
   s.endGroup();
 
   QList<QNetworkCookie> loadedCookies;
-  for (const QByteArray &line : cookieData.split('\n')) {
-      if (!line.isEmpty())
-          loadedCookies.append(QNetworkCookie::parseCookies(line).first());
+  for (const QByteArray &line : cookieData.split(';')) {
+    QByteArray trimmed = line.trimmed();
+    if (trimmed.isEmpty()) continue;
+    const QList<QNetworkCookie> parsed = QNetworkCookie::parseCookies(trimmed);
+    loadedCookies.append(parsed);
   }
 
   cookies_ = loadedCookies;
@@ -252,13 +254,19 @@ void NeteaseAuthenticator::AnonimousRequestFinished(QNetworkReply *reply) {
   QList<QNetworkCookie> cookies = setCookieHeader.value<QList<QNetworkCookie>>();
 
   QByteArray cookieData;
+  bool first = true;
   for (const QNetworkCookie &cookie : cookies) {
-      cookieData.append(cookie.toRawForm() + "\n");
+      if (!first)
+          cookieData.append("; ");
+      cookieData.append(cookie.name());
+      cookieData.append('=');
+      cookieData.append(cookie.value());
+      first = false;
   }
 
   Settings s;
   s.beginGroup(NeteaseSettings::kSettingsGroup);
-  s.setValue(NeteaseSettings::kCookies, cookieData);
+  s.setValue(NeteaseSettings::kCookies, QString::fromUtf8(cookieData));
   s.endGroup();
 
   cookies_ = cookies;
