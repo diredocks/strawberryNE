@@ -21,25 +21,31 @@
      </property>
     </widget>
    </item>
-   <!-- <item> -->
-   <!--  <widget class="QGroupBox" name="groupbox_basic_authentication"> -->
-   <!--   <property name="title"> -->
-   <!--    <string>Basic authentication</string> -->
-   <!--   </property> -->
-   <!--   <layout class="QHBoxLayout" name="horizontalLayout_2"> -->
-   <!--    <item> -->
-   <!--     <widget class="LoginStateWidget" name="login_state" native="true"/> -->
-   <!--    </item> -->
-   <!--    <item> -->
-   <!--     <widget class="QPushButton" name="button_login"> -->
-   <!--      <property name="text"> -->
-   <!--       <string>Authenticate</string> -->
-   <!--      </property> -->
-   <!--     </widget> -->
-   <!--    </item> -->
-   <!--   </layout> -->
-   <!--  </widget> -->
-   <!-- </item> -->
+   <item>
+   <widget class="QGroupBox" name="cookie_group">
+    <property name="title">
+    <string>Cookies</string>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_cookie">
+    <item>
+     <layout class="QHBoxLayout" name="layout_cookie">
+     <item>
+      <widget class="QLineEdit" name="cookie_text">
+      <property name="placeholderText">
+       <string>Enter cookies here, one per line or separated by semicolons</string>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <height>20</height>
+       </size>
+      </property>
+      </widget>
+     </item>
+     </layout>
+    </item>
+    </layout>
+   </widget>
+   </item>
    <item>
     <widget class="QGroupBox" name="groupbox_preferences">
      <property name="title">

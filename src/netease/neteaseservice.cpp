@@ -95,6 +95,8 @@ void NeteaseService::ReloadSettings() {
 
   timer_search_delay_->setInterval(static_cast<int>(search_delay));
 
+  auth_->LoadSession(); // Reload cookie in case user changed it
+
 };
 
 void NeteaseService::Authenticate() {

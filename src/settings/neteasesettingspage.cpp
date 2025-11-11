@@ -47,6 +47,7 @@ void NeteaseSettingsPage::Load() {
   ui_->albumssearchlimit->setValue(s.value(kAlbumsSearchLimit, 10).toInt());
   ui_->songssearchlimit->setValue(s.value(kSongsSearchLimit, 10).toInt());
   ui_->checkbox_download_album_covers->setChecked(s.value(kDownloadAlbumCovers, true).toBool());
+  ui_->cookie_text->setText(s.value(kCookies, ""_L1).toString());
 
   s.endGroup();
 
@@ -66,6 +67,7 @@ void NeteaseSettingsPage::Save() {
   s.setValue(kAlbumsSearchLimit, ui_->albumssearchlimit->value());
   s.setValue(kSongsSearchLimit, ui_->songssearchlimit->value());
   s.setValue(kDownloadAlbumCovers, ui_->checkbox_download_album_covers->isChecked());
+  s.setValue(kCookies, ui_->cookie_text->text());
   s.endGroup();
 
 }
