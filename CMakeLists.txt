@@ -1488,6 +1488,8 @@ optional_source(HAVE_NETEASE
     src/netease/neteasecrypto.cpp
     src/netease/neteaserequest.cpp
     src/netease/neteasebaserequest.cpp
+    src/netease/neteasestreamurlrequest.cpp
+    src/netease/neteaseurlhandler.cpp
     src/settings/neteasesettingspage.cpp
     src/covermanager/neteasecoverprovider.cpp
     src/lyrics/neteaselyricsprovider.cpp
@@ -1498,6 +1500,8 @@ optional_source(HAVE_NETEASE
     src/netease/neteasecrypto.h
     src/netease/neteaserequest.h
     src/netease/neteasebaserequest.h
+    src/netease/neteasestreamurlrequest.h
+    src/netease/neteaseurlhandler.h
     src/settings/neteasesettingspage.h
     src/covermanager/neteasecoverprovider.h
     src/lyrics/neteaselyricsprovider.h

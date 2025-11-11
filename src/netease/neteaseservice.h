@@ -4,10 +4,13 @@
 #include <QList>
 #include <QString>
 #include <QScopedPointer>
+#include <qobject.h>
 
 #include "core/song.h"
 #include "includes/shared_ptr.h"
 #include "core/networkaccessmanager.h"
+#include "netease/neteasestreamurlrequest.h"
+#include "netease/neteaseurlhandler.h"
 #include "streaming/streamingservice.h"
 #include "collection/collectionmodel.h"
 
@@ -15,6 +18,7 @@ class QTimer;
 
 class TaskManager;
 class Database;
+class UrlHandlers;
 class NetworkAccessManager;
 class AlbumCoverLoader;
 class NeteaseRequest;
@@ -29,6 +33,7 @@ class NeteaseService : public StreamingService {
   explicit NeteaseService(const SharedPtr<TaskManager> task_manager,
                           const SharedPtr<Database> database,
                           const SharedPtr<NetworkAccessManager> network,
+                          const SharedPtr<UrlHandlers> url_handlers,
                           const SharedPtr<AlbumCoverLoader> albumcover_Loader,
                           QObject *parent = nullptr);
 
@@ -53,6 +58,8 @@ class NeteaseService : public StreamingService {
 
   bool authenticated() const override;
   QList<QNetworkCookie> cookies() const;
+
+  uint GetStreamURL(const QUrl &url, QString &error);
 
   // SharedPtr<CollectionBackend> artists_collection_backend() override { return artists_collection_backend_; }
   // SharedPtr<CollectionBackend> albums_collection_backend() override { return albums_collection_backend_; }
@@ -96,13 +103,15 @@ class NeteaseService : public StreamingService {
   void ArtistsUpdateProgressReceived(const int id, const int progress);
   void AlbumsUpdateProgressReceived(const int id, const int progress);
   void SongsUpdateProgressReceived(const int id, const int progress);
+  void HandleStreamURLFailure(const uint id, const QUrl &media_url, const QString &error);
+  void HandleStreamURLSuccess(const uint id, const QUrl &media_url, const QUrl &stream_url, const Song::FileType filetype, const int samplerate, const int bit_depth, const qint64 duration);
 
  private:
   void SendSearch();
 
  private:
   const SharedPtr<NetworkAccessManager> network_;
-
+  NeteaseUrlHandler *url_handler_;
   SharedPtr<NeteaseAuthenticator> auth_;
 
   // SharedPtr<CollectionBackend> artists_collection_backend_;
@@ -137,9 +146,12 @@ class NeteaseService : public StreamingService {
   int search_id_;
   QString search_text_;
 
+  uint next_stream_url_request_id_;
+  QMap<uint, QSharedPointer<NeteaseStreamURLRequest>> stream_url_requests_;
+
   QList<QObject*> wait_for_exit_;
 };
 
-using NeteaseServicePtr = SharedPtr<NeteaseService>;
+using NeteaseServicePtr = QSharedPointer<NeteaseService>;
 
 #endif // NETEASESERVICE_H

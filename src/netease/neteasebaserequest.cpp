@@ -8,6 +8,7 @@
 #include <QCryptographicHash>
 #include <QRandomGenerator>
 
+#include "core/logging.h"
 #include "netease/neteasecrypto.h"
 #include "neteaseservice.h"
 #include "neteasebaserequest.h"
@@ -40,9 +41,22 @@ NeteaseBaseRequest::NeteaseBaseRequest(const NeteaseService *service, const Shar
       service_(service),
       network_(network) { }
 
-QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_name, const ParamList &params_provided) {
+// QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_name, const ParamList &params_provided) {
+QNetworkReply *NeteaseBaseRequest::CreatePostRequest(
+    const QString &resource_name,
+    const ParamList &params_provided,
+    EncryptionMethod encrypt_method) {
 
-  QUrl url(QLatin1String(NeteaseService::kWebApiUrl) + resource_name);
+  QUrl url;
+  switch (encrypt_method) {
+    case EncryptionMethod::Eapi:
+      url = QUrl(QLatin1String(NeteaseService::kApiUrl) + resource_name);
+      break;
+    case EncryptionMethod::Weapi:
+      url = QUrl(QLatin1String(NeteaseService::kWebApiUrl) + resource_name);
+    default:
+      break;
+  }
 
   QList<QNetworkCookie> cookies;
   if (service_->authenticated()) {
@@ -62,7 +76,18 @@ QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_nam
   for (const auto &param : params_provided)
     params_map.insert(param.first, param.second);
   params_map.insert("csrf_token"_L1, csrf_token);
-  const QVariantMap encrypted = NeteaseCrypto::weapi(QJsonDocument::fromVariant(params_map));
+
+  QVariantMap encrypted;
+
+  switch (encrypt_method) {
+    case EncryptionMethod::Eapi:
+      encrypted = NeteaseCrypto::eapi(resource_name, QJsonDocument::fromVariant(params_map));
+      break;
+    case EncryptionMethod::Weapi:
+    default:
+      encrypted = NeteaseCrypto::weapi(QJsonDocument::fromVariant(params_map));
+      break;
+  }
 
   QUrlQuery body_query;
   body_query.addQueryItem("params"_L1, QString::fromLatin1(QUrl::toPercentEncoding(encrypted.value("params"_L1).toString())));
@@ -91,7 +116,7 @@ QNetworkReply *NeteaseBaseRequest::CreatePostRequest(const QString &resource_nam
   replies_ << reply;
   QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseBaseRequest::HandleSSLErrors);
 
-  // qLog(Debug) << "Netease: POST" << url;
+  qLog(Debug) << "Netease: POST" << url;
 
   return reply;
 

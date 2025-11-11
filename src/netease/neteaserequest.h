@@ -19,12 +19,13 @@
 class QNetworkReply;
 class NetworkAccessManager;
 class NeteaseService;
+class NeteaseUrlHandler;
 
 class NeteaseRequest : public NeteaseBaseRequest {
   Q_OBJECT
 
  public:
-  explicit NeteaseRequest(NeteaseService *service, const SharedPtr<NetworkAccessManager> network, const Type type, QObject *parent);
+  explicit NeteaseRequest(NeteaseService *service, NeteaseUrlHandler *url_handler, const SharedPtr<NetworkAccessManager> network, const Type type, QObject *parent);
   ~NeteaseRequest() override;
 
   void ReloadSettings();
@@ -144,6 +145,7 @@ class NeteaseRequest : public NeteaseBaseRequest {
 
  private:
   const SharedPtr<NetworkAccessManager> network_;
+  NeteaseUrlHandler *url_handler_;
   QTimer *timer_flush_requests_;
 
   const Type type_;

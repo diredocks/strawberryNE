@@ -5,6 +5,7 @@
 
 #include "constants/neteasesettings.h"
 #include "neteaseservice.h"
+#include "neteasestreamurlrequest.h"
 #include "neteasebaserequest.h"
 #include "neteaserequest.h"
 #include "neteaseauthenticator.h"
@@ -12,6 +13,7 @@
 #include "core/song.h"
 #include "core/logging.h"
 #include "core/taskmanager.h"
+#include "core/urlhandlers.h"
 #include "core/database.h"
 #include "core/networkaccessmanager.h"
 #include "core/oauthenticator.h"
@@ -28,10 +30,12 @@ const char NeteaseService::kWebApiUrl[] = "https://music.163.com";
 NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
                                const SharedPtr<Database> database,
                                const SharedPtr<NetworkAccessManager> network,
+                               const SharedPtr<UrlHandlers> url_handlers,
                                const SharedPtr<AlbumCoverLoader> albumcover_loader,
                                QObject *parent)
     : StreamingService(Song::Source::Netease, u"Netease"_s, u"netease"_s, QLatin1String(NeteaseSettings::kSettingsGroup), parent),
       network_(network),
+      url_handler_(new NeteaseUrlHandler(task_manager, this)),
       auth_(new NeteaseAuthenticator(this, network, this)),
       timer_search_delay_(new QTimer(this)),
       enabled_(false),
@@ -44,6 +48,8 @@ NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
       next_pending_search_id_(1),
       pending_search_type_(SearchType::Artists),
       search_id_(0) {
+
+  url_handlers->Register(url_handler_);
 
   QObject::connect(auth_.get(), &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseService::AuthFinished);
 
@@ -135,7 +141,7 @@ void NeteaseService::GetArtists() {
     return;
   }
 
-  artists_request_.reset(new NeteaseRequest(this, network_, NeteaseBaseRequest::Type::FavouriteArtists, this));
+  artists_request_.reset(new NeteaseRequest(this, url_handler_, network_, NeteaseBaseRequest::Type::FavouriteArtists, this));
   QObject::connect(&*artists_request_, &NeteaseRequest::Results, this, &NeteaseService::ArtistsResultsReceived);
   QObject::connect(&*artists_request_, &NeteaseRequest::UpdateStatus, this, &NeteaseService::ArtistsUpdateStatusReceived);
   QObject::connect(&*artists_request_, &NeteaseRequest::ProgressSetMaximum, this, &NeteaseService::ArtistsProgressSetMaximumReceived);
@@ -153,7 +159,7 @@ void NeteaseService::GetAlbums() {
     return;
   }
 
-  albums_request_.reset(new NeteaseRequest(this, network_, NeteaseBaseRequest::Type::FavouriteAlbums, this));
+  albums_request_.reset(new NeteaseRequest(this, url_handler_, network_, NeteaseBaseRequest::Type::FavouriteAlbums, this));
   QObject::connect(&*albums_request_, &NeteaseRequest::Results, this, &NeteaseService::AlbumsResultsReceived);
   QObject::connect(&*albums_request_, &NeteaseRequest::UpdateStatus, this, &NeteaseService::AlbumsUpdateStatusReceived);
   QObject::connect(&*albums_request_, &NeteaseRequest::ProgressSetMaximum, this, &NeteaseService::AlbumsProgressSetMaximumReceived);
@@ -171,7 +177,7 @@ void NeteaseService::GetSongs() {
     return;
   }
 
-  songs_request_.reset(new NeteaseRequest(this, network_, NeteaseBaseRequest::Type::FavouriteSongs, this));
+  songs_request_.reset(new NeteaseRequest(this, url_handler_, network_, NeteaseBaseRequest::Type::FavouriteSongs, this));
   QObject::connect(&*songs_request_, &NeteaseRequest::Results, this, &NeteaseService::SongsResultsReceived);
   QObject::connect(&*songs_request_, &NeteaseRequest::UpdateStatus, this, &NeteaseService::SongsUpdateStatusReceived);
   QObject::connect(&*songs_request_, &NeteaseRequest::ProgressSetMaximum, this, &NeteaseService::SongsProgressSetMaximumReceived);
@@ -248,11 +254,11 @@ void NeteaseService::SendSearch() {
       type = NeteaseBaseRequest::Type::SearchSongs;
       break;
     default:
-      //Error("Invalid search type.");
+      // Error("Invalid search type.");
       return;
   }
 
-  search_request_.reset(new NeteaseRequest(this, network_, type, this));
+  search_request_.reset(new NeteaseRequest(this, url_handler_, network_, type, this));
   QObject::connect(&*search_request_, &NeteaseRequest::Results, this, &NeteaseService::SearchResultsReceived);
   QObject::connect(&*search_request_, &NeteaseRequest::UpdateStatus, this, &NeteaseService::SearchUpdateStatus);
   QObject::connect(&*search_request_, &NeteaseRequest::ProgressSetMaximum, this, &NeteaseService::SearchProgressSetMaximum);
@@ -335,4 +341,41 @@ void NeteaseService::AlbumsUpdateProgressReceived(const int id, const int progre
 void NeteaseService::SongsUpdateProgressReceived(const int id, const int progress) {
   Q_UNUSED(id);
   Q_EMIT SongsUpdateProgress(progress);
+}
+
+uint NeteaseService::GetStreamURL(const QUrl &url, QString &error) {
+
+  if (!authenticated()) {
+    error = tr("Not authenticated with Netease.");
+    return 0;
+  }
+
+  uint id = 0;
+  while (id == 0) id = ++next_stream_url_request_id_;
+  NeteaseStreamURLRequestPtr stream_url_request = NeteaseStreamURLRequestPtr(new NeteaseStreamURLRequest(this, network_, url, id));
+  stream_url_requests_.insert(id, stream_url_request);
+  QObject::connect(&*stream_url_request, &NeteaseStreamURLRequest::StreamURLFailure, this, &NeteaseService::HandleStreamURLFailure);
+  QObject::connect(&*stream_url_request, &NeteaseStreamURLRequest::StreamURLSuccess, this, &NeteaseService::HandleStreamURLSuccess);
+  stream_url_request->Process();
+
+  return id;
+
+}
+
+void NeteaseService::HandleStreamURLFailure(const uint id, const QUrl &media_url, const QString &error) {
+
+  if (!stream_url_requests_.contains(id)) return;
+  stream_url_requests_.remove(id);
+
+  Q_EMIT StreamURLFailure(id, media_url, error);
+
+}
+
+void NeteaseService::HandleStreamURLSuccess(const uint id, const QUrl &media_url, const QUrl &stream_url, const Song::FileType filetype, const int samplerate, const int bit_depth, const qint64 duration) {
+
+  if (!stream_url_requests_.contains(id)) return;
+  stream_url_requests_.remove(id);
+
+  Q_EMIT StreamURLSuccess(id, media_url, stream_url, filetype, samplerate, bit_depth, duration);
+
 }

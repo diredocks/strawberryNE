@@ -37,9 +37,10 @@ constexpr int kMaxConcurrentAlbumCoverRequests = 10;
 constexpr int kFlushRequestsDelay = 200;
 }  // namespace
 
-NeteaseRequest::NeteaseRequest(NeteaseService *service, const SharedPtr<NetworkAccessManager> network, const Type type, QObject *parent)
+NeteaseRequest::NeteaseRequest(NeteaseService *service, NeteaseUrlHandler *url_handler, const SharedPtr<NetworkAccessManager> network, const Type type, QObject *parent)
     : NeteaseBaseRequest(service, network, parent),
       network_(network),
+      url_handler_(url_handler),
       timer_flush_requests_(new QTimer(this)),
       type_(type),
       // TODO: fetchalbums_(service->fetchalbums()),
@@ -1062,7 +1063,11 @@ void NeteaseRequest::ParseSong(Song &song, const QJsonObject &json_obj, const Ar
   const int track = 0;
   const int disc = 0;
 
-  const QUrl url; // TODO: Empty
+  QUrl url;
+  url.setScheme(url_handler_->scheme());
+  url.setPath(song_id);
+
+  qLog(Debug) << url;
 
   song.set_source(Song::Source::Netease);
   song.set_song_id(song_id);

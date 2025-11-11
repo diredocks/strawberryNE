@@ -37,6 +37,11 @@ class NeteaseBaseRequest : public QObject {
     StreamURL,
   };
 
+  enum class EncryptionMethod {
+    Weapi,
+    Eapi
+  };
+
   using JsonValueResult  = JsonBaseRequest::JsonValueResult;
   using JsonObjectResult = JsonBaseRequest::JsonObjectResult;
   using JsonArrayResult = JsonBaseRequest::JsonArrayResult;
@@ -56,7 +61,12 @@ class NeteaseBaseRequest : public QObject {
   inline JsonObjectResult GetJsonObject(const QJsonObject &json_object, const QString &name) { return JsonBaseRequest::GetJsonObject(json_object, name); }
   inline JsonArrayResult GetJsonArray(const QJsonObject &json_object, const QString &name) { return JsonBaseRequest::GetJsonArray(json_object, name); }
 
-  QNetworkReply *CreatePostRequest(const QString &ressource_name, const ParamList &params_provided);
+  // QNetworkReply *CreatePostRequest(const QString &ressource_name, const ParamList &params_provided);
+  QNetworkReply *CreatePostRequest(
+      const QString &resource_name,
+      const ParamList &params_provided,
+      EncryptionMethod encrypt_method = EncryptionMethod::Weapi
+  );
 
   const NeteaseService *service_;
   QList<QNetworkReply*> replies_;

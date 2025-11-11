@@ -213,7 +213,7 @@ class ApplicationImpl {
           streaming_services->AddService(make_shared<QobuzService>(app->task_manager(), app->database(), app->network(), app->url_handlers(), app->albumcover_loader()));
 #endif
 #ifdef HAVE_NETEASE
-          streaming_services->AddService(make_shared<NeteaseService>(app->task_manager(), app->database(), app->network(), app->albumcover_loader()));
+          streaming_services->AddService(make_shared<NeteaseService>(app->task_manager(), app->database(), app->network(), app->url_handlers(), app->albumcover_loader()));
 #endif
           return streaming_services;
         }),
