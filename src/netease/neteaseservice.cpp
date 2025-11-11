@@ -217,7 +217,7 @@ int NeteaseService::Search(const QString &text, const SearchType type) {
 void NeteaseService::StartSearch() {
 
   if (!authenticated()) {
-    Q_EMIT SearchResults(pending_search_id_, SongMap(), tr("Not authenticated with Spotify."));
+    Q_EMIT SearchResults(pending_search_id_, SongMap(), tr("Not authenticated with Netease."));
     Q_EMIT OpenSettingsDialog(kSource);
     return;
   }
