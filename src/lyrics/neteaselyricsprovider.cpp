@@ -47,7 +47,7 @@ bool NeteaseLyricsProcvider::SendSearchRequest(LyricsSearchContextPtr search) {
   const QUrl url(QLatin1String(NeteaseService::kApiUrl) + "/api/cloudsearch/pc"_L1);
   QUrlQuery url_query;
   url_query.addQueryItem(u"type"_s, u"1"_s);
-  url_query.addQueryItem(u"s"_s, QString::fromLatin1(QUrl::toPercentEncoding(search->request.artist + u" "_s + search->request.title)));
+  url_query.addQueryItem(u"s"_s, QString::fromLatin1(QUrl::toPercentEncoding(search->request.title + u" "_s + search->request.artist)));
   QNetworkReply *reply = CreateGetRequest(url, url_query);
   QObject::connect(reply, &QNetworkReply::finished, this, [this, reply, search]() { HandleSearchReply(reply, search); });
 
