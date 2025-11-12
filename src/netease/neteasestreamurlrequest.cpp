@@ -115,7 +115,6 @@ void NeteaseStreamURLRequest::StreamURLReceived() {
   }
 
   const QJsonObject &json_object = json_object_result.json_object;
-  qLog(Debug) << json_object;
 
   if (json_object["code"_L1].toInt() != 200) {
     Q_EMIT StreamURLFailure(id_, media_url_, u"Invalid response code."_s);

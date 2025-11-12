@@ -1066,9 +1066,6 @@ void NeteaseRequest::ParseSong(Song &song, const QJsonObject &json_obj, const Ar
   QUrl url;
   url.setScheme(url_handler_->scheme());
   url.setPath(song_id);
-
-  qLog(Debug) << url;
-
   song.set_source(Song::Source::Netease);
   song.set_song_id(song_id);
   song.set_album_id(album_id);

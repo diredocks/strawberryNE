@@ -116,7 +116,7 @@ QNetworkReply *NeteaseBaseRequest::CreatePostRequest(
   replies_ << reply;
   QObject::connect(reply, &QNetworkReply::sslErrors, this, &NeteaseBaseRequest::HandleSSLErrors);
 
-  qLog(Debug) << "Netease: POST" << url;
+  // qLog(Debug) << "Netease: POST" << url;
 
   return reply;
 
