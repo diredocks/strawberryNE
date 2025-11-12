@@ -114,13 +114,13 @@ class NeteaseService : public StreamingService {
   NeteaseUrlHandler *url_handler_;
   SharedPtr<NeteaseAuthenticator> auth_;
 
-  // SharedPtr<CollectionBackend> artists_collection_backend_;
-  // SharedPtr<CollectionBackend> albums_collection_backend_;
-  // SharedPtr<CollectionBackend> songs_collection_backend_;
-  //
-  // CollectionModel *artists_collection_model_;
-  // CollectionModel *albums_collection_model_;
-  // CollectionModel *songs_collection_model_;
+  SharedPtr<CollectionBackend> artists_collection_backend_;
+  SharedPtr<CollectionBackend> albums_collection_backend_;
+  SharedPtr<CollectionBackend> songs_collection_backend_;
+
+  CollectionModel *artists_collection_model_;
+  CollectionModel *albums_collection_model_;
+  CollectionModel *songs_collection_model_;
 
   QTimer *timer_search_delay_;
 

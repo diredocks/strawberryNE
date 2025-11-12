@@ -1,14 +1,11 @@
+#include <memory>
+
 #include <QUrl>
 #include <QTimer>
 #include <QString>
 #include <QByteArray>
 
 #include "constants/neteasesettings.h"
-#include "neteaseservice.h"
-#include "neteasestreamurlrequest.h"
-#include "neteasebaserequest.h"
-#include "neteaserequest.h"
-#include "neteaseauthenticator.h"
 #include "core/settings.h"
 #include "core/song.h"
 #include "core/logging.h"
@@ -16,16 +13,29 @@
 #include "core/urlhandlers.h"
 #include "core/database.h"
 #include "core/networkaccessmanager.h"
-#include "core/oauthenticator.h"
 #include "streaming/streamingsearchview.h"
 #include "collection/collectionbackend.h"
 #include "collection/collectionmodel.h"
+#include "neteaseservice.h"
+#include "neteasestreamurlrequest.h"
+#include "neteasebaserequest.h"
+#include "neteaserequest.h"
+#include "neteaseauthenticator.h"
 
+using std::make_shared;
 using namespace Qt::Literals::StringLiterals;
 
 const Song::Source NeteaseService::kSource = Song::Source::Netease;
 const char NeteaseService::kApiUrl[] = "https://interface.music.163.com";
 const char NeteaseService::kWebApiUrl[] = "https://music.163.com";
+
+namespace {
+
+constexpr char kArtistsSongsTable[] = "spotify_artists_songs";
+constexpr char kAlbumsSongsTable[] = "spotify_albums_songs";
+constexpr char kSongsTable[] = "spotify_songs";
+
+}
 
 NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
                                const SharedPtr<Database> database,
@@ -37,6 +47,12 @@ NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
       network_(network),
       url_handler_(new NeteaseUrlHandler(task_manager, this)),
       auth_(new NeteaseAuthenticator(this, network, this)),
+      artists_collection_backend_(nullptr),
+      albums_collection_backend_(nullptr),
+      songs_collection_backend_(nullptr),
+      artists_collection_model_(nullptr),
+      albums_collection_model_(nullptr),
+      songs_collection_model_(nullptr),
       timer_search_delay_(new QTimer(this)),
       enabled_(false),
       artistssearchlimit_(1),
@@ -53,6 +69,24 @@ NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
 
   QObject::connect(auth_.get(), &NeteaseAuthenticator::AuthenticationFinished, this, &NeteaseService::AuthFinished);
 
+  // Backends
+  artists_collection_backend_ = make_shared<CollectionBackend>();
+  artists_collection_backend_->moveToThread(database->thread());
+  artists_collection_backend_->Init(database, task_manager, Song::Source::Spotify, QLatin1String(kArtistsSongsTable));
+
+  albums_collection_backend_ = make_shared<CollectionBackend>();
+  albums_collection_backend_->moveToThread(database->thread());
+  albums_collection_backend_->Init(database, task_manager, Song::Source::Spotify, QLatin1String(kAlbumsSongsTable));
+
+  songs_collection_backend_ = make_shared<CollectionBackend>();
+  songs_collection_backend_->moveToThread(database->thread());
+  songs_collection_backend_->Init(database, task_manager, Song::Source::Spotify, QLatin1String(kSongsTable));
+
+  // Models
+  artists_collection_model_ = new CollectionModel(artists_collection_backend_, albumcover_loader, this);
+  albums_collection_model_ = new CollectionModel(albums_collection_backend_, albumcover_loader, this);
+  songs_collection_model_ = new CollectionModel(songs_collection_backend_, albumcover_loader, this);
+
   timer_search_delay_->setSingleShot(true);
   QObject::connect(timer_search_delay_, &QTimer::timeout, this, &NeteaseService::StartSearch);
 
@@ -62,11 +96,36 @@ NeteaseService::NeteaseService(const SharedPtr<TaskManager> task_manager,
 
 }
 
-NeteaseService::~NeteaseService() { }
+NeteaseService::~NeteaseService() {
+
+  artists_collection_backend_->deleteLater();
+  albums_collection_backend_->deleteLater();
+  songs_collection_backend_->deleteLater();
+
+}
 
 void NeteaseService::Exit() {
 
-  Q_EMIT ExitFinished(); // Trigger this to indicate exit finished
+  wait_for_exit_ << &*artists_collection_backend_ << &*albums_collection_backend_ << &*songs_collection_backend_;
+
+  QObject::connect(&*artists_collection_backend_, &CollectionBackend::ExitFinished, this, &NeteaseService::ExitReceived);
+  QObject::connect(&*albums_collection_backend_, &CollectionBackend::ExitFinished, this, &NeteaseService::ExitReceived);
+  QObject::connect(&*songs_collection_backend_, &CollectionBackend::ExitFinished, this, &NeteaseService::ExitReceived);
+
+  artists_collection_backend_->ExitAsync();
+  albums_collection_backend_->ExitAsync();
+  songs_collection_backend_->ExitAsync();
+  // Q_EMIT ExitFinished(); // Trigger this to indicate exit finished
+
+}
+
+void NeteaseService::ExitReceived() {
+
+  QObject *obj = sender();
+  QObject::disconnect(obj, nullptr, this, nullptr);
+  qLog(Debug) << obj << "successfully exited.";
+  wait_for_exit_.removeAll(obj);
+  if (wait_for_exit_.isEmpty()) Q_EMIT ExitFinished();
 
 }
 
@@ -275,8 +334,6 @@ void NeteaseService::SearchResultsReceived(const int id, const SongMap &songs, c
   search_request_.reset();
 
 }
-
-void NeteaseService::ExitReceived() {}
 
 void NeteaseService::ArtistsResultsReceived(const int id, const SongMap &songs, const QString &error) {
   Q_UNUSED(id);

@@ -798,6 +798,7 @@ MainWindow::MainWindow(Application *app,
 #ifdef HAVE_NETEASE
   QObject::connect(netease_view_, &StreamingTabsView::OpenSettingsDialog, this, &MainWindow::OpenServiceSettingsDialog);
   QObject::connect(netease_view_->search_view(), &StreamingSearchView::OpenSettingsDialog, this, &MainWindow::OpenServiceSettingsDialog);
+  QObject::connect(netease_view_->search_view(), &StreamingSearchView::AddToPlaylist, this, &MainWindow::AddToPlaylist);
 #endif
 
   QObject::connect(radio_view_, &RadioViewContainer::Refresh, &*app_->radio_services(), &RadioServices::RefreshChannels);
@@ -1352,6 +1353,10 @@ void MainWindow::ReloadAllSettings() {
 #ifdef HAVE_QOBUZ
   qobuz_view_->ReloadSettings();
   qobuz_view_->search_view()->ReloadSettings();
+#endif
+#ifdef HAVE_NETEASE
+  netease_view_->ReloadSettings();
+  netease_view_->search_view()->ReloadSettings();
 #endif
 #ifdef HAVE_DISCORD_RPC
   discord_rich_presence_->ReloadSettings();
@@ -3403,6 +3408,11 @@ void MainWindow::FocusSearchField() {
 #ifdef HAVE_QOBUZ
   else if (ui_->tabs->currentIndex() == ui_->tabs->IndexOfTab(qobuz_view_) && !qobuz_view_->SearchFieldHasFocus()) {
     qobuz_view_->FocusSearchField();
+  }
+#endif
+#ifdef HAVE_NETEASE
+  else if (ui_->tabs->currentIndex() == ui_->tabs->IndexOfTab(netease_view_) && !netease_view_->SearchFieldHasFocus()) {
+    netease_view_->FocusSearchField();
   }
 #endif
   else if (!ui_->playlist->SearchFieldHasFocus()) {
